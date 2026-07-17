@@ -50,11 +50,52 @@ account's current balance and currency. No login screen, no other pages.
 
 ## Later milestones
 
-- **Milestone 2 (not yet grilled or approved):** Vercel deployment + an MCP server exposing account
-  balances, likely alongside transaction history.
-- **UX/UI milestone (not yet grilled or approved, sequencing TBD):** research and implement proper
-  UX/UI, replacing milestone 1's plain CSS.
+These have been grilled (2026-07-17) to a shared understanding of scope and key decisions, but are
+**not yet approved** and have no `.orchestrator/milestone.json` or tasks -- only one milestone slot
+is active at a time, and per the orchestrator's own rule, a later milestone's executable contract
+isn't drafted until the previous one is actually complete. Treat the bullets below as durable
+product decisions to carry into that future drafting session, not as authorization to start work.
 
-Do not draft tasks for either until milestone 1 is complete and each gets its own grill session.
+### Milestone 2 — Vercel deploy + MCP (balances-only)
+
+**Sequencing:** after milestone 1. Runs before the UX/UI milestone.
+
+**Scope:**
+
+- Deploy to Vercel via a GitHub-connected repo (auto-deploy on push to `main`), matching
+  `ember`/`ember-finance`'s `dev` → `main` workflow. A `duckling1169`-owned GitHub remote is
+  created when this milestone actually starts -- not before.
+- Browser UI protected by Vercel Deployment Protection (password).
+- The MCP route uses two-layer auth: Vercel's Protection Bypass secret as an outer platform-level
+  layer (so an MCP client can reach the route at all), plus an app-level static bearer-token check
+  (`crypto.timingSafeEqual`, matching `js/ember-finance`'s simpler pattern) as the real
+  authorization. This is a deliberate, noted tradeoff against the MCP spec's OAuth 2.1 mandate --
+  `js/ember` implements real OAuth 2.1 by delegating to Supabase as an authorization server, but
+  that only makes sense where a Supabase/user-account system already exists. This app has neither,
+  and standing one up solely to authenticate one user's MCP client is scope creep for a milestone
+  meant to stay small. Revisit if this becomes a real interoperability problem.
+- MCP surface: exactly one tool, `get_balances`, returning the same grouped-by-institution data as
+  the dashboard page. No finer-grained tools (no per-account queries) until there's a reason to
+  split.
+- Transaction history is explicitly out of scope -- balances only, same as milestone 1.
+- The real `SIMPLEFIN_ACCESS_URL`, the Vercel bypass secret, and the MCP bearer key are all set by
+  hand in Vercel's project dashboard -- never generated, requested, or seen by an unattended
+  orchestrator task. Same principle as milestone 1's `.env.local` handling.
+
+### Milestone 3 — UX/UI
+
+**Sequencing:** after milestone 2.
+
+**Scope:**
+
+- Reuse `js/ember`'s existing "Blocks" design system (shaped-panel/ink-shadow theme, components
+  ported from `ember-finance`) rather than designing something new for this dashboard -- visual
+  consistency across the finance apps, and a real head start over a from-scratch design exercise.
+- No dedicated `"research"`-type task -- goes straight to a porting/implementation task, since the
+  design system (and its patterns for panels/tables/lists) already exists; there isn't an open
+  design question left to research.
+- Includes responsive/mobile-friendly layout. This ties back to milestone 2's actual motivation
+  ("check balances from my phone") -- a deployed page that's only comfortable on desktop undercuts
+  that, and `ember`'s Blocks components are presumably already responsive from real multi-page use.
 
 List only likely outcomes and dependencies. Grill and approve each milestone after reviewing evidence from the previous one; do not pre-authorize unattended execution of later milestones.

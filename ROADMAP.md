@@ -8,14 +8,15 @@ Optional, noncommitted longer-term direction. Do not duplicate the near-term bac
 
 ## Next
 
-- Milestone 2: Vercel deployment + an MCP server exposing account data, likely with transaction
-  history added. Not yet grilled or approved.
+- Milestone 2: Vercel deployment (GitHub-connected auto-deploy) + a single-tool `get_balances` MCP
+  server, balances-only. Grilled 2026-07-17, not yet approved -- see
+  `docs/product/MILESTONES.md` for the full decision set (auth layering, credential handling).
 
 ## Later / exploratory
 
-- A dedicated UX/UI milestone: research and implement proper design, replacing milestone 1's plain
-  CSS. Not yet sequenced relative to milestone 2.
-- Whether this should eventually fold into `js/ember-finance` (which already has an MCP server and
-  a real holdings/tax-lot model) instead of staying a standalone dashboard, once it's clear what
-  SimpleFin actually adds beyond manual entry.
+- Milestone 3: UX/UI, reusing `js/ember`'s Blocks design system, including responsive/mobile
+  layout. Grilled 2026-07-17, not yet approved. Sequenced after milestone 2.
+- Whether this should eventually fold into `js/ember` (the newer graph-first rewrite, not
+  `ember-finance`) instead of staying a standalone dashboard, once it's clear what SimpleFin
+  actually adds beyond manual entry.
 
