@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Independent verifier result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "decision",
+    "unresolved_findings",
+    "checks",
+    "summary",
+    "needs_human"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "decision": {"enum": ["approve", "reject"]},
+    "unresolved_findings": {"type": "array", "items": {"type": "string"}},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exit_code"],
+        "properties": {
+          "command": {"type": "string"},
+          "exit_code": {"type": "integer"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "summary": {"type": "string"},
+    "needs_human": {"type": "boolean"}
+  }
+}

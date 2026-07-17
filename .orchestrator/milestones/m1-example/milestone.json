@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "m1-example",
+  "title": "First useful outcome",
+  "status": "draft",
+  "outcome": "Describe one observable capability that will exist when this milestone is accepted.",
+  "scope": {
+    "included": [
+      "Replace with explicitly included behavior"
+    ],
+    "excluded": [
+      "Replace with tempting but deferred behavior"
+    ]
+  },
+  "acceptance": {
+    "commands": [
+      "./scripts/verify-task.sh"
+    ],
+    "behaviors": [
+      {
+        "id": "example-behavior",
+        "description": "Replace with an externally observable outcome."
+      }
+    ]
+  },
+  "stop_conditions": [
+    "ambiguous_product_decision",
+    "acceptance_criteria_conflict",
+    "required_secret_missing",
+    "protected_surface_change",
+    "retry_limit_reached",
+    "budget_exhausted"
+  ]
+}
