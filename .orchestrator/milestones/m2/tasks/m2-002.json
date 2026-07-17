@@ -3,8 +3,10 @@
   "id": "m2-002",
   "milestone_id": "m2",
   "title": "MCP route with bearer-token auth exposing get_balances",
-  "status": "blocked",
-  "depends_on": ["m2-001"],
+  "status": "ready",
+  "depends_on": [
+    "m2-001"
+  ],
   "outcome": "An MCP route (e.g. app/mcp/route.ts) exposes exactly one tool, get_balances, backed by m2-001's shared SimpleFin module, and is protected by a static bearer-token check read from a server-side-only env var. This is a security-sensitive task: the bearer key comparison must be timing-safe, and the SimpleFin access URL must never appear in any response.",
   "acceptance": [
     "The MCP route is implemented using the Model Context Protocol SDK (@modelcontextprotocol/sdk) and a Next.js-compatible adapter (e.g. mcp-handler, matching js/ember-finance's dependency choice) rather than a hand-rolled JSON-RPC parser -- reuse the proven pattern rather than reinventing MCP framing.",

@@ -3,8 +3,10 @@
   "id": "m3-002",
   "milestone_id": "m3",
   "title": "Apply Blocks theme to the dashboard, responsive layout",
-  "status": "blocked",
-  "depends_on": ["m3-001"],
+  "status": "ready",
+  "depends_on": [
+    "m3-001"
+  ],
   "outcome": "The dashboard page is restyled using m3-001's ported Panel/Card components, grouping accounts by institution, and is comfortably usable at phone-sized viewport widths. All m1/m2 functional behavior (data, error states) is unchanged.",
   "acceptance": [
     "app/page.tsx (or wherever the dashboard renders) uses the ported Panel and/or Card components instead of m1's plain-CSS markup to display accounts grouped by institution.",

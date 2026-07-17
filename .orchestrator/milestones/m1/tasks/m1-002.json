@@ -3,8 +3,10 @@
   "id": "m1-002",
   "milestone_id": "m1",
   "title": "Server-side SimpleFin fetch and grouped-balances page",
-  "status": "blocked",
-  "depends_on": ["m1-001"],
+  "status": "ready",
+  "depends_on": [
+    "m1-001"
+  ],
   "outcome": "The home page is (or renders via) a Server Component that reads SIMPLEFIN_ACCESS_URL from process.env server-side, fetches SimpleFin's /accounts endpoint directly at request time (Basic Auth is embedded in the access URL itself per the SimpleFin protocol -- do not construct auth headers from a separate secret), and renders accounts grouped by institution/org with balance, currency, and as-of date. This is a security-sensitive task: the access URL and any auth headers must never appear in rendered HTML, a thrown error message, or a log line.",
   "acceptance": [
     "SIMPLEFIN_ACCESS_URL is read only inside server-side code (a Server Component or a server-only module it imports) -- grep the diff yourself to confirm it never appears in a 'use client' file, a NEXT_PUBLIC_ prefixed var, or anything shipped to the browser bundle.",
