@@ -1,13 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Replace this file with the repository's canonical non-interactive verification
-# command. Keep one stable entry point for the outer runner and CI.
-#
-# Examples:
-#   npm run verify
-#   uv run pytest
-#   make verify
+# Canonical non-interactive verification entry point for the outer runner and CI.
+# Runs lint, typecheck, test, and build in sequence, exiting non-zero on any failure.
 
-echo "Replace scripts/verify-task.sh with the repository's exact verification command." >&2
-exit 2
+cd "$(dirname "$0")/.."
+pnpm run verify
