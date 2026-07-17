@@ -5,3 +5,4 @@
 
 allowBuilds:
   sharp: false
+  unrs-resolver: true
