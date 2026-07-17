@@ -18,8 +18,8 @@
     "If SimpleFin's API returns a non-2xx response or the request fails (network error, timeout), the page renders a clear error state instead of crashing or leaking the raw upstream error body (which could contain the access URL if SimpleFin echoes the request).",
     "A .env.example file documents SIMPLEFIN_ACCESS_URL as a required variable with a one-line comment explaining it is a credential and must never be committed; .env.local remains gitignored.",
     "vitest tests cover: the rendered output and any error output never contain the access URL substring or SimpleFin's raw auth header; the missing-env-var error path; and the upstream-failure error path. Tests must mock the SimpleFin HTTP call (or point at SimpleFin's public demo bridge, https://demo:demo@beta-bridge.simplefin.org/simplefin) -- never construct or reference a real production access URL anywhere in test code or fixtures.",
-    "Manual verification: with SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, pnpm run dev and loading the page shows the demo accounts (Savings, Checking, Empty) grouped by institution -- record this manual check's result in the task's completion report; do not simulate it as automated coverage.",
-    "The repository's required verification command (./scripts/verify-task.sh) passes."
+    "The repository's required verification command (./scripts/verify-task.sh) passes.",
+    "Do not start a dev server (no `pnpm run dev` / `next dev`) and do not read, rely on, or set SIMPLEFIN_ACCESS_URL via any means (ambient env var, .env.local, inline shell export) outside of vitest's own mocked test setup. If a .env.local or any other file containing SIMPLEFIN_ACCESS_URL happens to exist in this repository, do not open it, read it, or use its value for anything -- it is out of scope for this task regardless of content, and manual live-server verification against the demo bridge is the maintainer's job, done separately after this task is verified, never the implementer's."
   ],
   "allowed_paths": [
     "app/",

@@ -16,7 +16,8 @@
     "MCP_BEARER_KEY is added to .env.example with a one-line comment marking it a credential that must never be committed; if unset, the route fails closed (rejects all requests) rather than allowing unauthenticated access.",
     "No response from the route -- success or error, authenticated or rejected -- ever contains the SimpleFin access URL, its embedded credential, or SimpleFin's raw auth headers. Verify this with an automated test, not just inspection.",
     "Tests cover: correct-key success returning demo-bridge data, missing-key rejection, wrong-key rejection, and the credential-never-leaks assertion above. Tests must use SimpleFin's public demo bridge or a mock -- never a real access URL.",
-    "The repository's required verification command (./scripts/verify-task.sh) passes."
+    "The repository's required verification command (./scripts/verify-task.sh) passes.",
+    "Do not start a dev server (no `pnpm run dev` / `next dev`) and do not read, rely on, or set SIMPLEFIN_ACCESS_URL or MCP_BEARER_KEY via any means (ambient env var, .env.local, inline shell export) outside of vitest's own mocked test setup. If a .env.local or any other file containing real credentials happens to exist in this repository, do not open it, read it, or use its value for anything -- manual live-server verification is the maintainer's job, done separately after this task is verified, never the implementer's."
   ],
   "allowed_paths": [
     "app/",
