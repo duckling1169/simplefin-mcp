@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "m1",
   "title": "Local balances dashboard",
-  "status": "draft",
+  "status": "approved",
   "outcome": "Running the app locally (pnpm run dev) and opening the page shows every account SimpleFin returns for the configured SIMPLEFIN_ACCESS_URL, grouped by institution, with each account's current balance and currency. The access URL/credential never reaches the browser.",
   "scope": {
     "included": [
