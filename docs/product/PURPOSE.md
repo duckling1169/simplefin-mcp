@@ -45,7 +45,12 @@ grouped by institution, without Adam needing to open each bank's site individual
   public demo bridge (demo credentials, fake accounts); Adam supplies his real access URL into
   `.env.local` himself after a milestone is verified, outside the orchestrator's control.
 - Next.js (App Router) + TypeScript, inside the `js/` pnpm workspace, matching the conventions
-  already established by `js/ember-finance`.
+  already established by `js/ember-finance`. Data flows through a Server Component that calls
+  SimpleFin directly -- no client-side API route in milestone 1.
+- Plain CSS only in milestone 1, no styling framework. Proper UX/UI is deliberately deferred to a
+  later, separately-grilled milestone rather than designed ad hoc alongside the data plumbing.
+- The orchestrator commits locally to a `dev` branch only; nothing is pushed to a remote in
+  milestone 1.
 
 ## Human authority boundaries
 

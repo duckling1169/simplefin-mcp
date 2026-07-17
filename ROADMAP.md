@@ -13,6 +13,8 @@ Optional, noncommitted longer-term direction. Do not duplicate the near-term bac
 
 ## Later / exploratory
 
+- A dedicated UX/UI milestone: research and implement proper design, replacing milestone 1's plain
+  CSS. Not yet sequenced relative to milestone 2.
 - Whether this should eventually fold into `js/ember-finance` (which already has an MCP server and
   a real holdings/tax-lot model) instead of staying a standalone dashboard, once it's clear what
   SimpleFin actually adds beyond manual entry.
