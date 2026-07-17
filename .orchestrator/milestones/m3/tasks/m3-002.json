@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "m3-002",
+  "milestone_id": "m3",
+  "title": "Apply Blocks theme to the dashboard, responsive layout",
+  "status": "blocked",
+  "depends_on": ["m3-001"],
+  "outcome": "The dashboard page is restyled using m3-001's ported Panel/Card components, grouping accounts by institution, and is comfortably usable at phone-sized viewport widths. All m1/m2 functional behavior (data, error states) is unchanged.",
+  "acceptance": [
+    "app/page.tsx (or wherever the dashboard renders) uses the ported Panel and/or Card components instead of m1's plain-CSS markup to display accounts grouped by institution.",
+    "The page renders correctly and legibly at a phone-sized viewport (e.g. 375px wide) -- no horizontal scrolling, no overlapping or clipped text, balances and institution names remain readable.",
+    "All existing behavior from m1/m2 is preserved exactly: the same data source (the shared SimpleFin module), the same missing-env-var error state, the same upstream-failure error state -- restyled, not reimplemented.",
+    "No changes to lib/simplefin.ts, the MCP route, or any auth logic in this task -- presentation only.",
+    "Existing tests from m1/m2 continue to pass (update any DOM-structure-dependent test assertions to match the new markup, but do not weaken what they assert about behavior).",
+    "The repository's required verification command (./scripts/verify-task.sh) passes.",
+    "Manual verification: with SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, pnpm run dev and loading the page at both a desktop and a phone-sized viewport shows the demo accounts grouped by institution, styled with the Blocks theme -- record this manual check's result in the task's completion report."
+  ],
+  "allowed_paths": [
+    "app/",
+    "components/",
+    "src/",
+    "tests/",
+    "**/*.test.*"
+  ],
+  "risk": "medium",
+  "verify": "always",
+  "model": "",
+  "effort": ""
+}

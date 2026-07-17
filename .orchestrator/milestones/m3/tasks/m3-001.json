@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "m3-001",
+  "milestone_id": "m3",
+  "title": "Add Tailwind v4 and port Blocks theme primitives",
+  "status": "ready",
+  "outcome": "Tailwind v4 is added to this repo, and the Blocks theme's CSS layer primitives plus the Panel/Kicker/Card components are ported from js/ember, copied and import-fixed, ready for m3-002 to apply to the dashboard page. No visual change to the dashboard yet -- this task only makes the primitives available.",
+  "acceptance": [
+    "Tailwind v4 is added (tailwindcss, @tailwindcss/postcss, postcss.config), matching js/ember's/js/ember-finance's setup (read their postcss.config.mjs / package.json devDependencies for the exact versions and config shape rather than guessing).",
+    "This repo's app/globals.css imports Tailwind and includes an @layer ember block containing the shaped-panel primitives (.panel/.pink/.pf), the .kick caption class, and the CSS custom properties they reference (--orange, --ink-3, and any others the ported components use) -- ported from js/ember/src/app/globals.css if that file is readable from this task's working directory; if not accessible, note the assumption clearly in the completion report and port from the values visible in js/ember/src/components/ui/panel.tsx and card.tsx instead.",
+    "src/lib/utils.ts (or lib/utils.ts, matching this repo's existing layout) exports a cn() className-merging utility, ported from js/ember/src/lib/utils.ts.",
+    "components/ui/panel.tsx (Panel, Kicker) and components/ui/card.tsx (Card and its subcomponents) are ported from js/ember's src/components/ui/, adapted only as needed to remove any js/ember-specific import paths -- keep the same props/API shape, do not redesign them.",
+    "Known gotcha to account for: js/ember's CONTRIBUTING.md documents that '.kick' (and other @layer ember primitives) lose to Tailwind's preflight reset on interactive elements (button/input) -- if this dashboard's error/loading states use any such element with a kick-styled label, wrap the label in a span, not the element itself.",
+    "The dashboard page's existing rendering and behavior are completely unchanged by this task -- these are new, unused-so-far files. m3-002 is what actually applies them.",
+    "The repository's required verification command (./scripts/verify-task.sh) passes.",
+    "No changes to app/page.tsx's rendering output in this task -- that is m3-002's scope."
+  ],
+  "allowed_paths": [
+    "app/globals.css",
+    "components/",
+    "lib/",
+    "src/",
+    "package.json",
+    "pnpm-lock.yaml",
+    "postcss.config.*",
+    "tailwind.config.*"
+  ],
+  "risk": "low",
+  "verify": "skip",
+  "model": "",
+  "effort": ""
+}
