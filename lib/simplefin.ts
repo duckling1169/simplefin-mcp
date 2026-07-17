@@ -1,3 +1,6 @@
+// Server-only by construction: reads SIMPLEFIN_ACCESS_URL (a credential), so this module
+// must only ever be imported from Server Components / other server-only modules, never
+// given a "use client" directive or imported into one.
 export class MissingCredentialError extends Error {
   constructor() {
     super("SIMPLEFIN_ACCESS_URL is not set.");
@@ -98,4 +101,33 @@ export async function fetchSimpleFinAccounts(): Promise<SimpleFinAccount[]> {
   return data.accounts
     .map((account) => parseAccount(account as RawSimpleFinAccount))
     .filter((account): account is SimpleFinAccount => account !== null);
+}
+
+export type InstitutionBalances = {
+  orgName: string;
+  accounts: SimpleFinAccount[];
+};
+
+export function groupByInstitution(accounts: SimpleFinAccount[]): InstitutionBalances[] {
+  const groups = new Map<string, SimpleFinAccount[]>();
+  for (const account of accounts) {
+    const group = groups.get(account.orgName);
+    if (group) {
+      group.push(account);
+    } else {
+      groups.set(account.orgName, [account]);
+    }
+  }
+  return Array.from(groups.entries()).map(([orgName, orgAccounts]) => ({
+    orgName,
+    accounts: orgAccounts,
+  }));
+}
+
+/**
+ * Fetches and groups balances by institution -- the shape both the dashboard page and the
+ * MCP get_balances tool render/return. Propagates fetchSimpleFinAccounts' errors unchanged.
+ */
+export async function getBalances(): Promise<InstitutionBalances[]> {
+  return groupByInstitution(await fetchSimpleFinAccounts());
 }
