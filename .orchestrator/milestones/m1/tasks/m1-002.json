@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "m1-002",
+  "milestone_id": "m1",
+  "title": "Server-side SimpleFin fetch and grouped-balances page",
+  "status": "blocked",
+  "depends_on": ["m1-001"],
+  "outcome": "The home page is (or renders via) a Server Component that reads SIMPLEFIN_ACCESS_URL from process.env server-side, fetches SimpleFin's /accounts endpoint directly at request time (Basic Auth is embedded in the access URL itself per the SimpleFin protocol -- do not construct auth headers from a separate secret), and renders accounts grouped by institution/org with balance, currency, and as-of date. This is a security-sensitive task: the access URL and any auth headers must never appear in rendered HTML, a thrown error message, or a log line.",
+  "acceptance": [
+    "SIMPLEFIN_ACCESS_URL is read only inside server-side code (a Server Component or a server-only module it imports) -- grep the diff yourself to confirm it never appears in a 'use client' file, a NEXT_PUBLIC_ prefixed var, or anything shipped to the browser bundle.",
+    "There is no client-side API route (e.g. app/api/accounts) and no client-side fetch -- data flows server-side only, rendered directly into the page's HTML.",
+    "The page fetches SimpleFin's /accounts endpoint and renders, per account: institution/org name, account name, balance (formatted as currency), and an as-of date -- grouped by institution.",
+    "The page blocks on the fetch and renders once complete -- no loading.tsx, no Suspense-based streaming loading state.",
+    "Plain CSS only -- no styling framework.",
+    "If SIMPLEFIN_ACCESS_URL is unset, the page renders a clear, human-readable error state (not a raw stack trace, not an unhandled crash, not a blank page) without ever attempting a network call or leaking the empty/undefined value.",
+    "If SimpleFin's API returns a non-2xx response or the request fails (network error, timeout), the page renders a clear error state instead of crashing or leaking the raw upstream error body (which could contain the access URL if SimpleFin echoes the request).",
+    "A .env.example file documents SIMPLEFIN_ACCESS_URL as a required variable with a one-line comment explaining it is a credential and must never be committed; .env.local remains gitignored.",
+    "vitest tests cover: the rendered output and any error output never contain the access URL substring or SimpleFin's raw auth header; the missing-env-var error path; and the upstream-failure error path. Tests must mock the SimpleFin HTTP call (or point at SimpleFin's public demo bridge, https://demo:demo@beta-bridge.simplefin.org/simplefin) -- never construct or reference a real production access URL anywhere in test code or fixtures.",
+    "Manual verification: with SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, pnpm run dev and loading the page shows the demo accounts (Savings, Checking, Empty) grouped by institution -- record this manual check's result in the task's completion report; do not simulate it as automated coverage.",
+    "The repository's required verification command (./scripts/verify-task.sh) passes."
+  ],
+  "allowed_paths": [
+    "app/",
+    "lib/",
+    "src/",
+    ".env.example",
+    "tests/",
+    "**/*.test.*"
+  ],
+  "risk": "high",
+  "verify": "always",
+  "model": "",
+  "effort": ""
+}

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "id": "m2",
+  "title": "MCP access to balances",
+  "status": "draft",
+  "outcome": "An MCP client (e.g. Claude) can call a get_balances tool on this app's deployed MCP route and receive the same grouped-by-institution balance data the dashboard page shows, authenticated by a static bearer API key. Deployment infrastructure itself (Vercel project, GitHub connection, Deployment Protection, real secrets) is already set up by the maintainer outside this milestone -- this milestone is code only.",
+  "scope": {
+    "included": [
+      "Refactor the SimpleFin fetch logic m1 built inside the dashboard's Server Component into a shared server-only module, reused by both the dashboard page and the new MCP route -- no behavior change to the existing page.",
+      "An MCP route (e.g. app/mcp/route.ts) exposing exactly one tool, get_balances, returning the same grouped-by-institution balance data as the dashboard page.",
+      "App-level static bearer-token authentication on the MCP route: a single API key read from a server-side-only env var (e.g. MCP_BEARER_KEY), compared with crypto.timingSafeEqual, checked via an Authorization: Bearer header or a ?key= query param (matching js/ember-finance's pattern, which specifically avoids returning a bare 401 that triggers an MCP client's OAuth auto-registration attempt).",
+      "A .env.example entry documenting MCP_BEARER_KEY as a required secret, with a comment that it must never be committed.",
+      "Tests: the MCP route rejects a missing/wrong bearer key, accepts the correct one, and its responses (success and error) never contain the SimpleFin access URL or its embedded credential.",
+      "Tests and any manual verification run against SimpleFin's public demo bridge, never a real linked account -- same principle as m1."
+    ],
+    "excluded": [
+      "Any actual deployment action (Vercel project creation, GitHub App authorization, Deployment Protection toggling, Protection Bypass secret generation, setting real env vars in Vercel) -- these are already done or remain maintainer actions outside any task.",
+      "Real OAuth 2.1 (the MCP spec's mandated pattern, as implemented by js/ember via Supabase) -- explicitly deferred; this app has no user-account system to delegate to. Noted as a spec-compliance tradeoff in docs/product/PURPOSE.md, not silently ignored.",
+      "Any additional MCP tools beyond get_balances (no per-account queries, no transaction history).",
+      "Pushing commits anywhere -- same as m1, the orchestrator commits to the local dev branch only.",
+      "Editing pnpm-workspace.yaml, .orchestrator/policy.json, or any file outside this repository's own directory."
+    ]
+  },
+  "acceptance": {
+    "commands": [
+      "./scripts/verify-task.sh"
+    ],
+    "behaviors": [
+      {
+        "id": "get-balances-authenticated",
+        "description": "A request to the MCP route with a correct bearer key successfully invokes get_balances and returns the same grouped-by-institution balance data as the dashboard page, using SimpleFin's public demo bridge."
+      },
+      {
+        "id": "get-balances-rejects-bad-auth",
+        "description": "A request to the MCP route with a missing or incorrect bearer key is rejected, without ever attempting the SimpleFin call and without returning a bare 401 that would trigger an MCP client's OAuth auto-registration flow (matching js/ember-finance's documented reasoning)."
+      },
+      {
+        "id": "credential-never-in-mcp-response",
+        "description": "Neither a successful nor an error response from the MCP route ever contains the SimpleFin access URL, its embedded credential, or SimpleFin's raw auth headers -- verified by an automated test, not just code review."
+      },
+      {
+        "id": "dashboard-unaffected",
+        "description": "The existing m1 dashboard page continues to render correctly after the SimpleFin-fetch refactor -- same behavior, now backed by the shared module instead of inline fetch logic."
+      }
+    ]
+  },
+  "stop_conditions": [
+    "ambiguous_product_decision",
+    "acceptance_criteria_conflict",
+    "required_secret_missing",
+    "protected_surface_change",
+    "retry_limit_reached",
+    "budget_exhausted"
+  ]
+}

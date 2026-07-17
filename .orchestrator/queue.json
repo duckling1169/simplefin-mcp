@@ -1,8 +1,10 @@
 {
   "schema_version": 1,
   "_comment": "Explicit, ordered, human-approved list of milestones to run unattended in one go — e.g. before an overnight run. Each id must have .orchestrator/milestones/<id>/{milestone.json,tasks/} with milestone.json's status set to 'approved'. scripts/queue.py stages each one in turn into the active .orchestrator/milestone.json + .orchestrator/tasks/ slot and runs the unmodified scripts/orchestrate.py against it, advancing only on a clean (exit 0) milestone completion and halting immediately on anything else. max_total_minutes bounds the whole run's wall clock, independent of each milestone's own execution.stop_after_minutes in policy.json.",
-  "max_total_minutes": 480,
+  "max_total_minutes": 600,
   "milestones": [
-    "m1-example"
+    "m1",
+    "m2",
+    "m3"
   ]
 }
