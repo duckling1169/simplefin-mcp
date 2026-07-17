@@ -5,13 +5,13 @@ import { MissingCredentialError, UpstreamError } from "../lib/simplefin";
 
 const DEMO_ACCESS_URL = "https://demo:demo@beta-bridge.simplefin.org/simplefin";
 
-const { fetchSimpleFinAccounts } = vi.hoisted(() => ({
-  fetchSimpleFinAccounts: vi.fn(),
+const { getBalances } = vi.hoisted(() => ({
+  getBalances: vi.fn(),
 }));
 
 vi.mock("../lib/simplefin", async () => {
   const actual = await vi.importActual<typeof import("../lib/simplefin")>("../lib/simplefin");
-  return { ...actual, fetchSimpleFinAccounts };
+  return { ...actual, getBalances };
 });
 
 async function renderHome(): Promise<string> {
@@ -26,22 +26,27 @@ describe("Home page", () => {
   });
 
   it("renders accounts grouped by institution with balance, currency, and as-of date", async () => {
-    fetchSimpleFinAccounts.mockResolvedValue([
+    getBalances.mockResolvedValue([
       {
-        id: "acct-1",
-        name: "Checking",
         orgName: "Demo Bank",
-        currency: "USD",
-        balance: "1234.56",
-        balanceDate: 1700000000,
-      },
-      {
-        id: "acct-2",
-        name: "Savings",
-        orgName: "Demo Bank",
-        currency: "USD",
-        balance: "500.00",
-        balanceDate: 1700000000,
+        accounts: [
+          {
+            id: "acct-1",
+            name: "Checking",
+            orgName: "Demo Bank",
+            currency: "USD",
+            balance: "1234.56",
+            balanceDate: 1700000000,
+          },
+          {
+            id: "acct-2",
+            name: "Savings",
+            orgName: "Demo Bank",
+            currency: "USD",
+            balance: "500.00",
+            balanceDate: 1700000000,
+          },
+        ],
       },
     ]);
 
@@ -55,7 +60,7 @@ describe("Home page", () => {
   });
 
   it("shows a clear error state, not a crash, when SIMPLEFIN_ACCESS_URL is unset", async () => {
-    fetchSimpleFinAccounts.mockRejectedValue(new MissingCredentialError());
+    getBalances.mockRejectedValue(new MissingCredentialError());
 
     const html = await renderHome();
 
@@ -64,7 +69,7 @@ describe("Home page", () => {
   });
 
   it("shows a clear error state, not a raw upstream error, when SimpleFin's API fails", async () => {
-    fetchSimpleFinAccounts.mockRejectedValue(new UpstreamError("SimpleFin returned an error (status 401)."));
+    getBalances.mockRejectedValue(new UpstreamError("SimpleFin returned an error (status 401)."));
 
     const html = await renderHome();
 
@@ -72,7 +77,7 @@ describe("Home page", () => {
   });
 
   it("never renders the access URL or its embedded credential, even on error", async () => {
-    fetchSimpleFinAccounts.mockRejectedValue(
+    getBalances.mockRejectedValue(
       new UpstreamError(`SimpleFin returned an error: ${DEMO_ACCESS_URL}/accounts`),
     );
 

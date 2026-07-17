@@ -1,6 +1,7 @@
 import {
-  fetchSimpleFinAccounts,
+  getBalances,
   MissingCredentialError,
+  type InstitutionBalances,
   type SimpleFinAccount,
 } from "../lib/simplefin";
 
@@ -23,25 +24,10 @@ function formatAsOf(account: SimpleFinAccount): string {
   return new Date(account.balanceDate * 1000).toLocaleString();
 }
 
-function groupByInstitution(
-  accounts: SimpleFinAccount[],
-): Map<string, SimpleFinAccount[]> {
-  const groups = new Map<string, SimpleFinAccount[]>();
-  for (const account of accounts) {
-    const group = groups.get(account.orgName);
-    if (group) {
-      group.push(account);
-    } else {
-      groups.set(account.orgName, [account]);
-    }
-  }
-  return groups;
-}
-
 export default async function Home() {
-  let accounts: SimpleFinAccount[];
+  let groups: InstitutionBalances[];
   try {
-    accounts = await fetchSimpleFinAccounts();
+    groups = await getBalances();
   } catch (error) {
     const message =
       error instanceof MissingCredentialError
@@ -55,19 +41,17 @@ export default async function Home() {
     );
   }
 
-  const groups = groupByInstitution(accounts);
-
   return (
     <main>
       <h1>Balances</h1>
-      {groups.size === 0 ? (
+      {groups.length === 0 ? (
         <p>No accounts found.</p>
       ) : (
-        Array.from(groups.entries()).map(([orgName, orgAccounts]) => (
+        groups.map(({ orgName, accounts }) => (
           <section key={orgName}>
             <h2>{orgName}</h2>
             <ul>
-              {orgAccounts.map((account) => (
+              {accounts.map((account) => (
                 <li key={account.id}>
                   <span>{account.name}</span>
                   <span> — {formatBalance(account)}</span>
