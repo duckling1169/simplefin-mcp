@@ -6,3 +6,28 @@ body {
   margin: 0;
   font-family: system-ui, sans-serif;
 }
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+section {
+  margin-bottom: 1.5rem;
+}
+
+section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+section li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+[role="alert"] {
+  color: #b00020;
+}
