@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Task orchestrator result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "outcome",
+    "summary",
+    "changed_files",
+    "checks",
+    "acceptance",
+    "review",
+    "needs_human",
+    "retryable"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "outcome": {"enum": ["completed", "blocked", "failed"]},
+    "summary": {"type": "string"},
+    "branch": {"type": "string"},
+    "commit": {"type": "string"},
+    "changed_files": {"type": "array", "items": {"type": "string"}},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exit_code"],
+        "properties": {
+          "command": {"type": "string"},
+          "exit_code": {"type": "integer"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "status", "evidence"],
+        "properties": {
+          "criterion": {"type": "string"},
+          "status": {"enum": ["passed", "failed", "not_run"]},
+          "evidence": {"type": "string"}
+        }
+      }
+    },
+    "review": {
+      "description": "Implementer's own self-assessment for the record only. It does not gate completion — a separate independent agent verifies the task afterward (see verify-result.schema.json) and that verdict is authoritative.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "unresolved_findings"],
+      "properties": {
+        "decision": {"enum": ["approve", "request_changes", "not_run"]},
+        "unresolved_findings": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "needs_human": {"type": "boolean"},
+    "retryable": {"type": "boolean"},
+    "risks": {"type": "array", "items": {"type": "string"}}
+  }
+}

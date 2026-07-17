@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "m1-002",
+  "milestone_id": "m1",
+  "title": "Server-side SimpleFin accounts route",
+  "status": "blocked",
+  "depends_on": ["m1-001"],
+  "outcome": "A Next.js route handler (e.g. app/api/accounts/route.ts) reads SIMPLEFIN_ACCESS_URL from process.env server-side, calls SimpleFin's /accounts endpoint (Basic Auth is embedded in the access URL itself per the SimpleFin protocol -- do not construct auth headers from a separate secret), and returns a balances-only JSON shape to the client. This is a security-sensitive task: the access URL and any auth headers must never appear in the response, in a thrown error message, or in a log line.",
+  "acceptance": [
+    "SIMPLEFIN_ACCESS_URL is read only inside server-side code (a Route Handler or Server Component) -- grep the diff yourself to confirm it never appears in a 'use client' file, a NEXT_PUBLIC_ prefixed var, or anything shipped to the browser bundle.",
+    "The route handler fetches SimpleFin's /accounts endpoint using the access URL's embedded credential and returns JSON containing, per account: institution/org name, account name, balance, currency, and an as-of timestamp -- nothing else from SimpleFin's raw response (no raw auth headers, no the access URL itself, no unrelated SimpleFin metadata).",
+    "If SIMPLEFIN_ACCESS_URL is unset, the route returns a clear error response (e.g. 500 with a JSON error body describing 'missing configuration') without ever attempting a network call or leaking the empty/undefined value.",
+    "If SimpleFin's API returns a non-2xx response or the request fails (network error, timeout), the route returns a clear error response instead of crashing the process or leaking the raw upstream error body (which could contain the access URL if SimpleFin echoes the request).",
+    "A .env.example file documents SIMPLEFIN_ACCESS_URL as a required variable with a one-line comment explaining it is a credential and must never be committed; .env.local remains gitignored.",
+    "Tests cover: the route's response shape omits the access URL and any auth header; the missing-env-var error path; and the upstream-failure error path. Tests must mock the SimpleFin HTTP call (or point at SimpleFin's public demo bridge) -- never construct or reference a real production access URL anywhere in test code or fixtures.",
+    "The repository's required verification command (./scripts/verify-task.sh) passes.",
+    "No dashboard UI changes in this task -- that is m1-003's scope."
+  ],
+  "allowed_paths": [
+    "app/api/",
+    "lib/",
+    "src/",
+    ".env.example",
+    "tests/",
+    "**/*.test.*"
+  ],
+  "risk": "high",
+  "verify": "always",
+  "model": "",
+  "effort": ""
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "id": "m1",
+  "title": "Local balances dashboard",
+  "status": "draft",
+  "outcome": "Running the app locally (pnpm run dev) and opening the page shows every account SimpleFin returns for the configured SIMPLEFIN_ACCESS_URL, grouped by institution, with each account's current balance and currency. The access URL/credential never reaches the browser.",
+  "scope": {
+    "included": [
+      "Next.js (App Router, TypeScript) app scaffolded in this repo, joined to the js/ pnpm workspace, with working lint/typecheck/test/build scripts and scripts/verify-task.sh wired to them",
+      "A server-side route handler that reads SIMPLEFIN_ACCESS_URL from a server-side-only env var and calls SimpleFin's /accounts endpoint, returning a balances-only JSON shape to the client",
+      "A single dashboard page fetching from the app's own API route and rendering accounts grouped by institution/org, with balance, currency, and as-of date, plus clear loading and error states",
+      "Tests and manual verification run against SimpleFin's public demo bridge, never a real linked account"
+    ],
+    "excluded": [
+      "Transaction history, budgeting, or categorization",
+      "Any deployment target (Vercel, etc.) -- local dev only",
+      "Any MCP server",
+      "Multi-user auth or any login system",
+      "Using or requesting Adam's real SimpleFin access URL for any orchestrator task or verification step"
+    ]
+  },
+  "acceptance": {
+    "commands": [
+      "./scripts/verify-task.sh"
+    ],
+    "behaviors": [
+      {
+        "id": "demo-balances-render",
+        "description": "With SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, running pnpm run dev and loading the page shows the demo accounts grouped by institution, each with a balance and currency."
+      },
+      {
+        "id": "credential-never-client-side",
+        "description": "While loading the page, the browser's network tab shows no request whose URL, headers, or body contains the SimpleFin access URL or its embedded credential; the API route's response body also never contains it."
+      },
+      {
+        "id": "graceful-missing-env",
+        "description": "With SIMPLEFIN_ACCESS_URL unset, loading the page shows a clear error state instead of an unhandled crash or a blank page."
+      },
+      {
+        "id": "graceful-upstream-failure",
+        "description": "If SimpleFin's API returns an auth error or is unreachable, the dashboard shows a clear error state instead of an unhandled crash or a silently empty account list."
+      }
+    ]
+  },
+  "stop_conditions": [
+    "ambiguous_product_decision",
+    "acceptance_criteria_conflict",
+    "required_secret_missing",
+    "protected_surface_change",
+    "retry_limit_reached",
+    "budget_exhausted"
+  ]
+}

@@ -1,0 +1,1 @@
+variant,agent,model,version,task_id,run,success,input_tokens,cached_input_tokens,output_tokens,reasoning_tokens,tool_calls,files_read,seconds,estimated_cost,notes
