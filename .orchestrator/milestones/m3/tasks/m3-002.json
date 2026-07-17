@@ -15,7 +15,8 @@
     "No changes to lib/simplefin.ts, the MCP route, or any auth logic in this task -- presentation only.",
     "Existing tests from m1/m2 continue to pass (update any DOM-structure-dependent test assertions to match the new markup, but do not weaken what they assert about behavior).",
     "The repository's required verification command (./scripts/verify-task.sh) passes.",
-    "Manual verification: with SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, pnpm run dev and loading the page at both a desktop and a phone-sized viewport shows the demo accounts grouped by institution, styled with the Blocks theme -- record this manual check's result in the task's completion report."
+    "Viewport/responsive behavior must be verified via an automated test (e.g. a jsdom/vitest test asserting layout at a narrow viewport width, or a component-level check) -- do not start a dev server (no `pnpm run dev` / `next dev`) to check this manually. Manual live-server/visual verification at desktop and phone widths is the maintainer's job, done separately after this task is verified, never the implementer's.",
+    "Do not read, rely on, or set SIMPLEFIN_ACCESS_URL via any means (ambient env var, .env.local, inline shell export) outside of vitest's own mocked test setup. If a .env.local or any other file containing real credentials happens to exist in this repository, do not open it, read it, or use its value for anything."
   ],
   "allowed_paths": [
     "app/",
