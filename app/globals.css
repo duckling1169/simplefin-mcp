@@ -1,5 +1,131 @@
+/* Declare the bold-primitive layer FIRST so it orders below Tailwind's own
+   layers (theme/base/components/utilities). Tailwind v4 silently strips author
+   `@layer components {}` blocks to unlayered (where they'd beat every utility),
+   so the shaped-panel/kicker primitives live in this custom `ember` layer
+   instead — that's what lets <Panel fillClassName="bg-orange"> and <Kicker>
+   text tints actually override the defaults. Ported from js/ember-finance's
+   src/app/globals.css. */
+@layer ember;
+
+@import "tailwindcss";
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-orange: var(--orange);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+
+  --font-serif: var(--font-playfair), "Playfair Display", Georgia, serif;
+}
+
 :root {
   color-scheme: light dark;
+
+  --card: #f5f5f0;
+  --card-foreground: #16160f;
+  --muted-foreground: #5c5c52;
+
+  /* Bold "Blocks" tokens — ink outlines, paper layers, accent set, offset shadow */
+  --ink: #16160f;
+  --ink-2: #5c5c52;
+  --ink-3: #8d8d82;
+  --paper: #f5f5f0;
+  --orange: #e8531c;
+  --ofs: drop-shadow(6px 7px 0 var(--ink));
+}
+
+.dark {
+  --card: #221e13;
+  --card-foreground: #f3ead6;
+  --muted-foreground: #ada386;
+
+  /* Bold "Blocks" tokens (dark) */
+  --ink: #f3ead6;
+  --ink-2: #ada386;
+  --ink-3: #776e57;
+  --paper: #221e13;
+  --orange: #f56a26;
+  --ofs: drop-shadow(6px 7px 0 var(--ink));
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Bold "Blocks" design language — shared primitives
+   Ported from js/ember-finance's src/app/globals.css. Used by the
+   <Panel>/<Kicker> and <Card> components; pages adopt it page-by-page.
+   ──────────────────────────────────────────────────────────────────────── */
+@layer ember {
+.font-serif {
+  font-family: var(--font-playfair), "Playfair Display", Georgia, serif;
+  font-weight: 900;
+  font-feature-settings: "lnum" 1;
+}
+.kick {
+  font-family: var(--font-roboto-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* Shaped panels — three layers: .panel holds the outline+offset shadow filter,
+   .pink is the ink outline (a 3px ink frame), .pf is the clipped paper fill.
+   Corner variants chamfer (k-tr), slant (k-br), notch (k-bl) or round (k-rr)
+   a single safe corner; sizing via --cut / --slant / --sdy. */
+.panel {
+  position: relative;
+  display: flex;
+  filter: var(--ofs);
+  --cut: 30px;
+  --slant: 56px;
+  --sdy: 26px;
+}
+.pink {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  background: var(--ink);
+  padding: 3px;
+}
+.pf {
+  flex: 1;
+  min-width: 0;
+  background: var(--paper);
+  overflow: hidden;
+}
+.pink.k-tr {
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+.k-tr > .pf {
+  clip-path: polygon(0 0, calc(100% - var(--cut) - 4px) 0, 100% calc(var(--cut) + 4px), 100% 100%, 0 100%);
+}
+.pink.k-br {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--sdy)), calc(100% - var(--slant)) 100%, 0 100%);
+}
+.k-br > .pf {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--sdy) - 3px), calc(100% - var(--slant) - 7px) 100%, 0 100%);
+}
+.pink.k-bl {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+.k-bl > .pf {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, calc(var(--cut) + 4px) 100%, 0 calc(100% - var(--cut) - 4px));
+}
+.pink.k-rr {
+  border-top-right-radius: calc(var(--cut) + 8px);
+}
+.k-rr > .pf {
+  border-top-right-radius: calc(var(--cut) + 5px);
+}
+} /* end @layer ember — bold primitives */
+
+/* A card nested inside another card drops the hard offset shadow so the bold
+   frame doesn't stack shadow-on-shadow; it keeps its ink border for definition. */
+[data-slot="card"] [data-slot="card"] {
+  box-shadow: none;
 }
 
 body {
