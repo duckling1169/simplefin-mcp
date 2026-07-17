@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "m2",
   "title": "MCP access to balances",
-  "status": "draft",
+  "status": "approved",
   "outcome": "An MCP client (e.g. Claude) can call a get_balances tool on this app's deployed MCP route and receive the same grouped-by-institution balance data the dashboard page shows, authenticated by a static bearer API key. Deployment infrastructure itself (Vercel project, GitHub connection, Deployment Protection, real secrets) is already set up by the maintainer outside this milestone -- this milestone is code only.",
   "scope": {
     "included": [

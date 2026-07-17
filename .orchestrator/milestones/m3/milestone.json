@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "m3",
   "title": "UX/UI: port ember's Blocks theme, responsive layout",
-  "status": "draft",
+  "status": "approved",
   "outcome": "The dashboard page uses js/ember's 'Blocks' design system (shaped-panel/ink-shadow visual language) instead of m1's plain CSS, and is comfortably usable on a phone -- replacing m1's minimal styling without changing the underlying data-fetching logic from m1/m2.",
   "scope": {
     "included": [
