@@ -1,0 +1,7 @@
+# Standalone pnpm config for the Vercel build, which clones ONLY this repo
+# (see js/ember-finance's and js/ember's pnpm-workspace.yaml for the same pattern).
+# This also gives the repo its own pnpm-lock.yaml instead of hoisting into the
+# parent js/pnpm-lock.yaml.
+
+allowBuilds:
+  sharp: false
