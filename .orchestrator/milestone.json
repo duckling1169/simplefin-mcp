@@ -7,16 +7,23 @@
   "scope": {
     "included": [
       "Next.js (App Router, TypeScript) app scaffolded in this repo, joined to the js/ pnpm workspace, with working lint/typecheck/test/build scripts and scripts/verify-task.sh wired to them",
-      "A server-side route handler that reads SIMPLEFIN_ACCESS_URL from a server-side-only env var and calls SimpleFin's /accounts endpoint, returning a balances-only JSON shape to the client",
-      "A single dashboard page fetching from the app's own API route and rendering accounts grouped by institution/org, with balance, currency, and as-of date, plus clear loading and error states",
-      "Tests and manual verification run against SimpleFin's public demo bridge, never a real linked account"
+      "vitest as the test runner",
+      "A Server Component that reads SIMPLEFIN_ACCESS_URL from a server-side-only env var, fetches SimpleFin's /accounts endpoint directly at request time, and renders the grouped-balances page server-side -- no client-side API route, no client-side fetch",
+      "Plain CSS (no styling framework) for milestone 1",
+      "The page blocks on the SimpleFin fetch and renders once complete -- no loading.tsx/Suspense streaming in milestone 1",
+      "Tests and manual verification run against SimpleFin's public demo bridge (https://demo:demo@beta-bridge.simplefin.org/simplefin), never a real linked account",
+      "A vitest test asserting the rendered page and any error output never contain the access URL substring or SimpleFin's raw auth header"
     ],
     "excluded": [
+      "Any client-side API route (e.g. app/api/accounts) or client-side fetch -- data flows server-side only",
+      "Any styling framework (Tailwind, etc.) -- plain CSS only; a later, separately-grilled milestone will research and implement proper UX/UI",
+      "loading.tsx or Suspense-based streaming loading states",
       "Transaction history, budgeting, or categorization",
       "Any deployment target (Vercel, etc.) -- local dev only",
       "Any MCP server",
       "Multi-user auth or any login system",
-      "Using or requesting Adam's real SimpleFin access URL for any orchestrator task or verification step"
+      "Using or requesting Adam's real SimpleFin access URL for any orchestrator task or verification step",
+      "Pushing commits anywhere -- the orchestrator commits locally on the dev branch only; no remote is configured for milestone 1"
     ]
   },
   "acceptance": {
@@ -26,11 +33,11 @@
     "behaviors": [
       {
         "id": "demo-balances-render",
-        "description": "With SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, running pnpm run dev and loading the page shows the demo accounts grouped by institution, each with a balance and currency."
+        "description": "With SIMPLEFIN_ACCESS_URL pointed at SimpleFin's public demo bridge, running pnpm run dev and loading the page shows the demo accounts (Savings, Checking, Empty) grouped by institution, each with a balance and currency."
       },
       {
         "id": "credential-never-client-side",
-        "description": "While loading the page, the browser's network tab shows no request whose URL, headers, or body contains the SimpleFin access URL or its embedded credential; the API route's response body also never contains it."
+        "description": "The page is server-rendered with no client-side API route or fetch; a vitest test asserts the rendered output and any thrown/logged error never contain the SimpleFin access URL or its embedded credential."
       },
       {
         "id": "graceful-missing-env",

@@ -23,8 +23,8 @@ pnpm run verify   # lint + typecheck + test + build
 
 Open `http://localhost:3000` after `pnpm run dev`. The page lists every account SimpleFin returns
 for the configured `SIMPLEFIN_ACCESS_URL`, grouped by institution, with current balance and
-currency. See `docs/product/PURPOSE.md` for why this exists and `docs/product/MILESTONES.md` for
-current scope.
+currency. The page is server-rendered — there is no client-side API route. See
+`docs/product/PURPOSE.md` for why this exists and `docs/product/MILESTONES.md` for current scope.
 
 ## Project documents
 
