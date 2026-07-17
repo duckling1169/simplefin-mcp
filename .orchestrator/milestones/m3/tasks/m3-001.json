@@ -13,7 +13,8 @@
     "Known gotcha to account for: js/ember's CONTRIBUTING.md documents that '.kick' (and other @layer ember primitives) lose to Tailwind's preflight reset on interactive elements (button/input) -- if this dashboard's error/loading states use any such element with a kick-styled label, wrap the label in a span, not the element itself.",
     "The dashboard page's existing rendering and behavior are completely unchanged by this task -- these are new, unused-so-far files. m3-002 is what actually applies them.",
     "The repository's required verification command (./scripts/verify-task.sh) passes.",
-    "No changes to app/page.tsx's rendering output in this task -- that is m3-002's scope."
+    "No changes to app/page.tsx's rendering output in this task -- that is m3-002's scope.",
+    "Adding a new dependency will make `pnpm install --frozen-lockfile` fail until `pnpm install` (without --frozen-lockfile) regenerates the lockfile -- this is expected, not a defect. Do it, then re-verify. In the final result's checks array, report only the currently-true state (the passing, lockfile-updated re-run of ./scripts/verify-task.sh) -- do not include an already-superseded failing command run from before the lockfile update. A checks array containing any non-zero exit code is treated as a real, unresolved failure by the runner regardless of what the notes field says, and blocks completion outright."
   ],
   "allowed_paths": [
     "app/globals.css",
