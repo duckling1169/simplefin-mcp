@@ -76,9 +76,27 @@ export async function fetchSimpleFinAccounts(): Promise<SimpleFinAccount[]> {
     throw new MissingCredentialError();
   }
 
+  // fetch() rejects (or silently drops) URLs with embedded username:password --
+  // per the Fetch spec, a request cannot be constructed from a URL that includes
+  // credentials. Strip them out and send an explicit Basic Auth header instead.
+  let requestUrl: URL;
+  try {
+    requestUrl = new URL(`${accessUrl}/accounts`);
+  } catch {
+    throw new UpstreamError("SIMPLEFIN_ACCESS_URL is not a valid URL.");
+  }
+  const username = requestUrl.username;
+  const password = requestUrl.password;
+  requestUrl.username = "";
+  requestUrl.password = "";
+  const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+
   let response: Response;
   try {
-    response = await fetch(`${accessUrl}/accounts`, { cache: "no-store" });
+    response = await fetch(requestUrl, {
+      cache: "no-store",
+      headers: { Authorization: authHeader },
+    });
   } catch {
     throw new UpstreamError("Could not reach SimpleFin. Check your network connection and try again.");
   }
