@@ -83,6 +83,26 @@ describe("fetchSimpleFinAccounts", () => {
     expect((caught as Error).message).not.toContain(DEMO_ACCESS_URL);
   });
 
+  it("strips embedded credentials from the request URL and sends them as a Basic Auth header instead", async () => {
+    process.env.SIMPLEFIN_ACCESS_URL = DEMO_ACCESS_URL;
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ errors: [], accounts: [] }), { status: 200 }),
+    );
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await fetchSimpleFinAccounts();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [calledUrl, calledInit] = fetchSpy.mock.calls[0];
+    // fetch() rejects/drops URLs with embedded userinfo -- the request URL itself
+    // must never contain the credential.
+    expect(String(calledUrl)).not.toContain("demo:demo");
+    expect(String(calledUrl)).not.toContain("@beta-bridge");
+    expect(String(calledUrl)).toBe("https://beta-bridge.simplefin.org/simplefin/accounts");
+    const headers = new Headers((calledInit as RequestInit).headers);
+    expect(headers.get("Authorization")).toBe(`Basic ${Buffer.from("demo:demo").toString("base64")}`);
+  });
+
   it("throws UpstreamError without leaking the access URL when the network request fails", async () => {
     process.env.SIMPLEFIN_ACCESS_URL = DEMO_ACCESS_URL;
     globalThis.fetch = vi.fn().mockRejectedValue(new Error(`connect failed for ${DEMO_ACCESS_URL}`)) as unknown as typeof fetch;
