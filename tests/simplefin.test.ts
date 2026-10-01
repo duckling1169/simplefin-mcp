@@ -1,37 +1,21 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchSimpleFinAccounts,
-  MissingCredentialError,
   UpstreamError,
 } from "../lib/simplefin";
 
 const DEMO_ACCESS_URL = "https://demo:demo@beta-bridge.simplefin.org/simplefin";
 
 describe("fetchSimpleFinAccounts", () => {
-  const originalAccessUrl = process.env.SIMPLEFIN_ACCESS_URL;
   const originalFetch = globalThis.fetch;
 
-  beforeEach(() => {
-    delete process.env.SIMPLEFIN_ACCESS_URL;
-  });
-
   afterEach(() => {
-    process.env.SIMPLEFIN_ACCESS_URL = originalAccessUrl;
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
-  it("throws MissingCredentialError and never calls fetch when SIMPLEFIN_ACCESS_URL is unset", async () => {
-    const fetchSpy = vi.fn();
-    globalThis.fetch = fetchSpy as unknown as typeof fetch;
-
-    await expect(fetchSimpleFinAccounts()).rejects.toBeInstanceOf(MissingCredentialError);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
   it("parses SimpleFin's /accounts response into grouped-ready account records", async () => {
-    process.env.SIMPLEFIN_ACCESS_URL = DEMO_ACCESS_URL;
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -51,7 +35,7 @@ describe("fetchSimpleFinAccounts", () => {
       ),
     ) as unknown as typeof fetch;
 
-    const accounts = await fetchSimpleFinAccounts();
+    const accounts = await fetchSimpleFinAccounts(DEMO_ACCESS_URL);
 
     expect(accounts).toEqual([
       {
@@ -66,14 +50,13 @@ describe("fetchSimpleFinAccounts", () => {
   });
 
   it("throws UpstreamError without leaking the access URL when SimpleFin returns a non-2xx status", async () => {
-    process.env.SIMPLEFIN_ACCESS_URL = DEMO_ACCESS_URL;
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(new Response(`Unauthorized: ${DEMO_ACCESS_URL}/accounts`, { status: 401 })) as unknown as typeof fetch;
 
     let caught: unknown;
     try {
-      await fetchSimpleFinAccounts();
+      await fetchSimpleFinAccounts(DEMO_ACCESS_URL);
     } catch (error) {
       caught = error;
     }
@@ -84,13 +67,12 @@ describe("fetchSimpleFinAccounts", () => {
   });
 
   it("strips embedded credentials from the request URL and sends them as a Basic Auth header instead", async () => {
-    process.env.SIMPLEFIN_ACCESS_URL = DEMO_ACCESS_URL;
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ errors: [], accounts: [] }), { status: 200 }),
     );
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
-    await fetchSimpleFinAccounts();
+    await fetchSimpleFinAccounts(DEMO_ACCESS_URL);
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [calledUrl, calledInit] = fetchSpy.mock.calls[0];
@@ -104,12 +86,11 @@ describe("fetchSimpleFinAccounts", () => {
   });
 
   it("throws UpstreamError without leaking the access URL when the network request fails", async () => {
-    process.env.SIMPLEFIN_ACCESS_URL = DEMO_ACCESS_URL;
     globalThis.fetch = vi.fn().mockRejectedValue(new Error(`connect failed for ${DEMO_ACCESS_URL}`)) as unknown as typeof fetch;
 
     let caught: unknown;
     try {
-      await fetchSimpleFinAccounts();
+      await fetchSimpleFinAccounts(DEMO_ACCESS_URL);
     } catch (error) {
       caught = error;
     }

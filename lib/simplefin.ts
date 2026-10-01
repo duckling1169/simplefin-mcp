@@ -1,13 +1,4 @@
-// Server-only by construction: reads SIMPLEFIN_ACCESS_URL (a credential), so this module
-// must only ever be imported from Server Components / other server-only modules, never
-// given a "use client" directive or imported into one.
-export class MissingCredentialError extends Error {
-  constructor() {
-    super("SIMPLEFIN_ACCESS_URL is not set.");
-    this.name = "MissingCredentialError";
-  }
-}
-
+// Server-only: handles SimpleFin access URLs (credentials). Never log or return one.
 export class UpstreamError extends Error {
   constructor(message: string) {
     super(message);
@@ -65,18 +56,11 @@ function parseAccount(raw: RawSimpleFinAccount): SimpleFinAccount | null {
 }
 
 /**
- * Fetches accounts from SimpleFin's Bridge API. The access URL embeds Basic Auth
- * credentials per the SimpleFin protocol, so no separate auth header is constructed.
+ * Fetches accounts from SimpleFin's Bridge API.
  * Never include the access URL or the raw upstream response body in a thrown error --
  * SimpleFin can echo the request, and doing so would leak the credential to callers.
  */
-export async function fetchSimpleFinAccounts(
-  accessUrl: string | undefined = process.env.SIMPLEFIN_ACCESS_URL,
-): Promise<SimpleFinAccount[]> {
-  if (!accessUrl) {
-    throw new MissingCredentialError();
-  }
-
+export async function fetchSimpleFinAccounts(accessUrl: string): Promise<SimpleFinAccount[]> {
   // fetch() rejects (or silently drops) URLs with embedded username:password --
   // per the Fetch spec, a request cannot be constructed from a URL that includes
   // credentials. Strip them out and send an explicit Basic Auth header instead.
@@ -84,7 +68,7 @@ export async function fetchSimpleFinAccounts(
   try {
     requestUrl = new URL(`${accessUrl}/accounts`);
   } catch {
-    throw new UpstreamError("SIMPLEFIN_ACCESS_URL is not a valid URL.");
+    throw new UpstreamError("The stored SimpleFin access URL is not valid.");
   }
   const username = requestUrl.username;
   const password = requestUrl.password;
@@ -144,9 +128,8 @@ export function groupByInstitution(accounts: SimpleFinAccount[]): InstitutionBal
 }
 
 /**
- * Fetches and groups balances by institution -- the shape both the dashboard page and the
- * MCP get_balances tool render/return. Propagates fetchSimpleFinAccounts' errors unchanged.
+ * Fetches and groups balances by institution. Propagates fetchSimpleFinAccounts' errors unchanged.
  */
-export async function getBalances(accessUrl?: string): Promise<InstitutionBalances[]> {
-  return groupByInstitution(await fetchSimpleFinAccounts(accessUrl ?? process.env.SIMPLEFIN_ACCESS_URL));
+export async function getBalances(accessUrl: string): Promise<InstitutionBalances[]> {
+  return groupByInstitution(await fetchSimpleFinAccounts(accessUrl));
 }
