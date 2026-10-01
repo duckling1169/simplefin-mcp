@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { parseAccountSet } from "../lib/simplefin";
+import { parseAccountSet } from "@/lib/simplefin";
 
-vi.mock("../lib/connections", () => ({
+vi.mock("@/lib/connections", () => ({
   loadConnection: async (key: string) =>
     key === "good-key"
       ? {
@@ -13,8 +13,8 @@ vi.mock("../lib/connections", () => ({
       : null,
 }));
 
-vi.mock("../lib/data", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../lib/data")>();
+vi.mock("@/lib/data", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/data")>();
   const snapshot = {
     ...parseAccountSet({
       connections: [{ conn_id: "C", org_name: "Demo Bank" }],
@@ -36,7 +36,7 @@ vi.mock("../lib/data", async (importOriginal) => {
   return { ...actual, getSnapshot: async () => snapshot };
 });
 
-const { POST } = await import("../app/mcp/route");
+const { POST } = await import("@/app/mcp/route");
 
 function rpc(method: string, params: unknown, key = "good-key") {
   return POST(

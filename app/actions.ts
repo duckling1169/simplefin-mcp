@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 
-import { createConnection, SetupTokenError } from "../lib/connections";
+import { createConnection, SetupTokenError } from "@/lib/connections";
 
 export type SetupState = { url?: string; error?: string };
 

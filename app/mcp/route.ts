@@ -3,9 +3,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 
-import { type ConnectionHandle, loadConnection } from "../../lib/connections";
-import { getSnapshot, getTransactionsInRange } from "../../lib/data";
-import { DAY } from "../../lib/simplefin";
+import { type ConnectionHandle, loadConnection } from "@/lib/connections";
+import { getSnapshot, getTransactionsInRange } from "@/lib/data";
+import { DAY } from "@/lib/simplefin";
 import {
   connectionStatus,
   filterTransactions,
@@ -13,7 +13,7 @@ import {
   listAccounts,
   listHoldings,
   summarize,
-} from "../../lib/tools";
+} from "@/lib/tools";
 
 // MCP Streamable HTTP endpoint. Auth is the connection key minted by the setup page, sent as
 // `Authorization: Bearer <key>` or `?key=<key>`. An unknown key never reaches a tool.
