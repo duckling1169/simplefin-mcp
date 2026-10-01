@@ -19,6 +19,7 @@ import {
 // `Authorization: Bearer <key>` or `?key=<key>`. An unknown key never reaches a tool.
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const requestConnection = new AsyncLocalStorage<ConnectionHandle>();
 
@@ -62,14 +63,14 @@ const handler = createMcpHandler(
       {
         title: "List accounts",
         description: `All accounts grouped by institution with balance, available balance and IDs. ${CACHE_NOTE}`,
-        inputSchema: {
+        inputSchema: z.object({
           refresh: z
             .boolean()
             .optional()
             .describe(
               "Bypass the cache. Uses SimpleFin's daily quota; avoid unless asked.",
             ),
-        },
+        }),
         annotations: { readOnlyHint: true },
       },
       ({ refresh }) =>
@@ -92,7 +93,7 @@ const handler = createMcpHandler(
         description:
           "Transactions, newest first. Negative amounts are money out. Defaults to the last 30 days. " +
           "About the last 90 days are cached; older ranges cost extra SimpleFin requests.",
-        inputSchema: {
+        inputSchema: z.object({
           start_date: isoDate.optional().describe("Inclusive, YYYY-MM-DD"),
           end_date: isoDate.optional().describe("Inclusive, YYYY-MM-DD"),
           account_ids: z
@@ -113,7 +114,7 @@ const handler = createMcpHandler(
             .max(500)
             .optional()
             .describe("Default 100"),
-        },
+        }),
         annotations: { readOnlyHint: true },
       },
       (args) =>
@@ -151,7 +152,7 @@ const handler = createMcpHandler(
         description:
           "Totals of money out/in over a period, grouped by payee, category (merchant category code, often missing), " +
           "account, or month. Excludes pending. Defaults to the last 30 days.",
-        inputSchema: {
+        inputSchema: z.object({
           start_date: isoDate.optional(),
           end_date: isoDate.optional(),
           group_by: z
@@ -166,7 +167,7 @@ const handler = createMcpHandler(
             .max(200)
             .optional()
             .describe("Groups to return, default 25"),
-        },
+        }),
         annotations: { readOnlyHint: true },
       },
       (args) =>
@@ -197,7 +198,7 @@ const handler = createMcpHandler(
         title: "Get holdings",
         description:
           "Investment positions (symbol, shares, market value, cost basis) for accounts that report them.",
-        inputSchema: {},
+        inputSchema: z.object({}),
         annotations: { readOnlyHint: true },
       },
       () =>
@@ -216,7 +217,7 @@ const handler = createMcpHandler(
         title: "Connection status",
         description:
           "Linked institutions and any errors SimpleFin reports (e.g. a bank needing re-authentication).",
-        inputSchema: {},
+        inputSchema: z.object({}),
         annotations: { readOnlyHint: true },
       },
       () =>
@@ -227,7 +228,6 @@ const handler = createMcpHandler(
     );
   },
   { serverInfo: { name: "simplefin-mcp", version: "0.1.0" } },
-  { basePath: "", maxDuration: 60, disableSse: true },
 );
 
 function extractKey(req: Request): string | null {

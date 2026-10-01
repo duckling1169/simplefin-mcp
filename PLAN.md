@@ -53,7 +53,7 @@ tests/              pure logic and the route with mocked upstreams
 **README.** Same order in both: pitch, GIF, a link to the site, the tool table, the Deploy button,
 connecting a client, the security model, development, and license. The two projects do not link to each other.
 
-**Repo hygiene.** MIT `LICENSE`, CI (lint, typecheck, test, build) with a badge, and
+**Repo hygiene.** MIT `LICENSE`, CI (format, typecheck, test) with a badge, and
 `.env.example`. A short `AGENTS.md` for contributors. No orchestrator or agent workflow files, and
 no planning docs.
 
