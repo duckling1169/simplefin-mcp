@@ -18,7 +18,7 @@ export function timingSafeEqualString(a: string, b: string): boolean {
 }
 
 /** Pulls the bearer key from the Authorization header, or falls back to ?key=. */
-function extractBearerKey(req: Request): string | null {
+export function extractBearerKey(req: Request): string | null {
   const header = req.headers.get("authorization") ?? "";
   if (header.startsWith("Bearer ")) {
     const fromHeader = header.slice(7).trim();

@@ -70,8 +70,9 @@ function parseAccount(raw: RawSimpleFinAccount): SimpleFinAccount | null {
  * Never include the access URL or the raw upstream response body in a thrown error --
  * SimpleFin can echo the request, and doing so would leak the credential to callers.
  */
-export async function fetchSimpleFinAccounts(): Promise<SimpleFinAccount[]> {
-  const accessUrl = process.env.SIMPLEFIN_ACCESS_URL;
+export async function fetchSimpleFinAccounts(
+  accessUrl: string | undefined = process.env.SIMPLEFIN_ACCESS_URL,
+): Promise<SimpleFinAccount[]> {
   if (!accessUrl) {
     throw new MissingCredentialError();
   }
@@ -146,6 +147,6 @@ export function groupByInstitution(accounts: SimpleFinAccount[]): InstitutionBal
  * Fetches and groups balances by institution -- the shape both the dashboard page and the
  * MCP get_balances tool render/return. Propagates fetchSimpleFinAccounts' errors unchanged.
  */
-export async function getBalances(): Promise<InstitutionBalances[]> {
-  return groupByInstitution(await fetchSimpleFinAccounts());
+export async function getBalances(accessUrl?: string): Promise<InstitutionBalances[]> {
+  return groupByInstitution(await fetchSimpleFinAccounts(accessUrl ?? process.env.SIMPLEFIN_ACCESS_URL));
 }
