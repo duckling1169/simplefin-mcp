@@ -17,21 +17,22 @@ function supabaseConfig() {
   if (!url || !key) throw new Error("Supabase is not configured on the server.");
   const headers: Record<string, string> = { apikey: key, "Content-Type": "application/json" };
   if (key.startsWith("eyJ")) headers.Authorization = `Bearer ${key}`;
-  return { rest: `${url.replace(/\/$/, "")}/rest/v1/connections`, headers };
+  return { rest: `${url.replace(/\/$/, "")}/rest/v1`, headers };
 }
 
 const hashKey = (key: string) => createHash("sha256").update(key).digest("hex");
 const aesKey = (key: string) =>
   Buffer.from(hkdfSync("sha256", key, "simplefin-mcp", "access-url", 32));
 
-export function encryptAccessUrl(accessUrl: string, key: string): string {
+/** AES-256-GCM under a key derived from the connection key. */
+export function seal(plaintext: string, key: string): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", aesKey(key), iv);
-  const data = Buffer.concat([cipher.update(accessUrl, "utf8"), cipher.final()]);
+  const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   return [iv, cipher.getAuthTag(), data].map((b) => b.toString("base64url")).join(".");
 }
 
-export function decryptAccessUrl(ciphertext: string, key: string): string {
+export function unseal(ciphertext: string, key: string): string {
   const [iv, tag, data] = ciphertext.split(".").map((p) => Buffer.from(p, "base64url"));
   const decipher = createDecipheriv("aes-256-gcm", aesKey(key), iv);
   decipher.setAuthTag(tag);
@@ -68,27 +69,52 @@ export async function createConnection(setupToken: string): Promise<string> {
 
   const key = randomBytes(32).toString("base64url");
   const { rest, headers } = supabaseConfig();
-  const insert = await fetch(rest, {
+  const insert = await fetch(`${rest}/connections`, {
     method: "POST",
     headers: { ...headers, Prefer: "return=minimal" },
-    body: JSON.stringify({ key_hash: hashKey(key), access_url_ciphertext: encryptAccessUrl(accessUrl, key) }),
+    body: JSON.stringify({ key_hash: hashKey(key), access_url_ciphertext: seal(accessUrl, key) }),
   });
   if (!insert.ok) throw new Error(`Failed to save connection (HTTP ${insert.status}).`);
   return key;
 }
 
-/** Returns the decrypted access URL for a connection key, or null if the key is unknown. */
-export async function accessUrlForKey(key: string): Promise<string | null> {
+export type ConnectionHandle = { key: string; keyHash: string; accessUrl: string };
+
+/** Resolves a connection key to its decrypted access URL, or null if the key is unknown. */
+export async function loadConnection(key: string): Promise<ConnectionHandle | null> {
   const { rest, headers } = supabaseConfig();
   const keyHash = hashKey(key);
-  const res = await fetch(`${rest}?key_hash=eq.${keyHash}&select=access_url_ciphertext`, { headers });
+  const res = await fetch(`${rest}/connections?key_hash=eq.${keyHash}&select=access_url_ciphertext`, { headers });
   if (!res.ok) throw new Error(`Failed to look up connection (HTTP ${res.status}).`);
   const rows = (await res.json()) as { access_url_ciphertext: string }[];
   if (rows.length === 0) return null;
-  void fetch(`${rest}?key_hash=eq.${keyHash}`, {
+  void fetch(`${rest}/connections?key_hash=eq.${keyHash}`, {
     method: "PATCH",
     headers,
     body: JSON.stringify({ last_used_at: new Date().toISOString() }),
   }).catch(() => {});
-  return decryptAccessUrl(rows[0].access_url_ciphertext, key);
+  return { key, keyHash, accessUrl: unseal(rows[0].access_url_ciphertext, key) };
+}
+
+/** Cached, encrypted per-connection payload (see snapshots table). */
+export async function readSnapshot(conn: ConnectionHandle): Promise<{ json: string; fetchedAt: number } | null> {
+  const { rest, headers } = supabaseConfig();
+  const res = await fetch(`${rest}/snapshots?key_hash=eq.${conn.keyHash}&select=ciphertext,fetched_at`, { headers });
+  if (!res.ok) return null;
+  const rows = (await res.json()) as { ciphertext: string; fetched_at: string }[];
+  if (rows.length === 0) return null;
+  try {
+    return { json: unseal(rows[0].ciphertext, conn.key), fetchedAt: Date.parse(rows[0].fetched_at) };
+  } catch {
+    return null;
+  }
+}
+
+export async function writeSnapshot(conn: ConnectionHandle, json: string): Promise<void> {
+  const { rest, headers } = supabaseConfig();
+  await fetch(`${rest}/snapshots?on_conflict=key_hash`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({ key_hash: conn.keyHash, ciphertext: seal(json, conn.key), fetched_at: new Date().toISOString() }),
+  }).catch(() => {});
 }

@@ -1,4 +1,7 @@
 // Server-only: handles SimpleFin access URLs (credentials). Never log or return one.
+// Protocol: https://www.simplefin.org/protocol.html (version 2). Bridge limits: ~24 requests/day,
+// at most 90 days of transactions per request, with a warning above 45 ("may be capped").
+
 export class UpstreamError extends Error {
   constructor(message: string) {
     super(message);
@@ -6,130 +9,183 @@ export class UpstreamError extends Error {
   }
 }
 
-export type SimpleFinAccount = {
+export const DAY = 86400;
+/** Days of transactions per request -- Bridge's recommended maximum. */
+export const MAX_WINDOW_DAYS = 45;
+
+export type Connection = { id: string; name: string; orgUrl: string | null };
+export type Transaction = {
+  id: string;
+  posted: number;
+  transactedAt: number | null;
+  amount: number;
+  description: string;
+  payee: string | null;
+  memo: string | null;
+  mcc: string | null;
+  pending: boolean;
+};
+export type Holding = {
+  id: string;
+  symbol: string | null;
+  description: string | null;
+  shares: number | null;
+  marketValue: number | null;
+  costBasis: number | null;
+  purchasePrice: number | null;
+  currency: string | null;
+};
+export type Account = {
   id: string;
   name: string;
-  orgName: string;
+  connectionId: string | null;
+  institution: string;
   currency: string;
-  balance: string;
+  balance: number;
+  availableBalance: number | null;
   balanceDate: number;
+  transactions: Transaction[];
+  holdings: Holding[];
+};
+export type SimpleFinError = { code: string | null; message: string; connectionId: string | null; accountId: string | null };
+export type AccountSet = { connections: Connection[]; accounts: Account[]; errors: SimpleFinError[] };
+
+export type FetchOptions = {
+  startDate?: number;
+  endDate?: number;
+  pending?: boolean;
+  balancesOnly?: boolean;
+  accountIds?: string[];
 };
 
-type RawSimpleFinResponse = {
-  errors?: unknown;
-  accounts?: unknown;
+type Raw = Record<string, unknown>;
+const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
+const num = (v: unknown) => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : null;
 };
+const arr = (v: unknown): Raw[] => (Array.isArray(v) ? (v.filter((x) => x && typeof x === "object") as Raw[]) : []);
 
-type RawSimpleFinAccount = {
-  id?: unknown;
-  name?: unknown;
-  currency?: unknown;
-  balance?: unknown;
-  "balance-date"?: unknown;
-  org?: { name?: unknown; domain?: unknown } | null;
-};
-
-function parseAccount(raw: RawSimpleFinAccount): SimpleFinAccount | null {
-  if (
-    typeof raw.id !== "string" ||
-    typeof raw.name !== "string" ||
-    typeof raw.currency !== "string" ||
-    typeof raw.balance !== "string" ||
-    typeof raw["balance-date"] !== "number"
-  ) {
-    return null;
-  }
-
-  const orgName =
-    (raw.org && typeof raw.org.name === "string" && raw.org.name) ||
-    (raw.org && typeof raw.org.domain === "string" && raw.org.domain) ||
-    "Unknown institution";
-
+function parseTransaction(raw: Raw): Transaction | null {
+  const id = str(raw.id);
+  const posted = num(raw.posted);
+  const amount = num(raw.amount);
+  if (!id || posted === null || amount === null) return null;
   return {
-    id: raw.id,
-    name: raw.name,
-    orgName,
-    currency: raw.currency,
-    balance: raw.balance,
-    balanceDate: raw["balance-date"],
+    id,
+    posted,
+    transactedAt: num(raw.transacted_at),
+    amount,
+    description: str(raw.description) ?? "",
+    payee: str(raw.payee),
+    memo: str(raw.memo),
+    mcc: raw.mcc == null ? null : String(raw.mcc),
+    pending: raw.pending === true,
   };
 }
 
+function parseHolding(raw: Raw): Holding | null {
+  const id = str(raw.id);
+  if (!id) return null;
+  return {
+    id,
+    symbol: str(raw.symbol),
+    description: str(raw.description),
+    shares: num(raw.shares),
+    marketValue: num(raw.market_value),
+    costBasis: num(raw.cost_basis),
+    purchasePrice: num(raw.purchase_price),
+    currency: str(raw.currency),
+  };
+}
+
+export function parseAccountSet(data: Raw): AccountSet {
+  const connections: Connection[] = arr(data.connections).flatMap((c) => {
+    const id = str(c.conn_id);
+    return id ? [{ id, name: str(c.org_name) ?? str(c.name) ?? id, orgUrl: str(c.org_url) }] : [];
+  });
+  const connName = new Map(connections.map((c) => [c.id, c.name]));
+
+  const accounts: Account[] = arr(data.accounts).flatMap((a) => {
+    const id = str(a.id);
+    const balance = num(a.balance);
+    const balanceDate = num(a["balance-date"]);
+    if (!id || balance === null || balanceDate === null) return [];
+    const connectionId = str(a.conn_id);
+    const org = (a.org ?? null) as Raw | null;
+    return [
+      {
+        id,
+        name: str(a.name) ?? id,
+        connectionId,
+        institution:
+          (connectionId && connName.get(connectionId)) || str(org?.name) || str(org?.domain) || "Unknown institution",
+        currency: str(a.currency) ?? "USD",
+        balance,
+        availableBalance: num(a["available-balance"]),
+        balanceDate,
+        transactions: arr(a.transactions).flatMap((t) => parseTransaction(t) ?? []),
+        holdings: arr(a.holdings).flatMap((h) => parseHolding(h) ?? []),
+      },
+    ];
+  });
+
+  const errors: SimpleFinError[] = [
+    ...arr(data.errlist).map((e) => ({
+      code: str(e.code),
+      message: str(e.msg) ?? "Unknown error",
+      connectionId: str(e.conn_id),
+      accountId: str(e.account_id),
+    })),
+    ...(Array.isArray(data.errors) ? data.errors : [])
+      .filter((e): e is string => typeof e === "string")
+      .map((message) => ({ code: null, message, connectionId: null, accountId: null })),
+  ];
+
+  return { connections, accounts, errors };
+}
+
 /**
- * Fetches accounts from SimpleFin's Bridge API.
- * Never include the access URL or the raw upstream response body in a thrown error --
- * SimpleFin can echo the request, and doing so would leak the credential to callers.
+ * One GET /accounts call. fetch() refuses URLs with embedded credentials, so they're moved into
+ * an explicit Basic Auth header. Errors never include the access URL or the upstream body.
  */
-export async function fetchSimpleFinAccounts(accessUrl: string): Promise<SimpleFinAccount[]> {
-  // fetch() rejects (or silently drops) URLs with embedded username:password --
-  // per the Fetch spec, a request cannot be constructed from a URL that includes
-  // credentials. Strip them out and send an explicit Basic Auth header instead.
-  let requestUrl: URL;
+export async function fetchAccountSet(accessUrl: string, opts: FetchOptions = {}): Promise<AccountSet> {
+  let url: URL;
   try {
-    requestUrl = new URL(`${accessUrl}/accounts`);
+    url = new URL(`${accessUrl.replace(/\/$/, "")}/accounts`);
   } catch {
     throw new UpstreamError("The stored SimpleFin access URL is not valid.");
   }
-  const username = requestUrl.username;
-  const password = requestUrl.password;
-  requestUrl.username = "";
-  requestUrl.password = "";
-  const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+  const auth = "Basic " + Buffer.from(`${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`).toString("base64");
+  url.username = "";
+  url.password = "";
+  url.searchParams.set("version", "2");
+  if (opts.startDate !== undefined) url.searchParams.set("start-date", String(Math.floor(opts.startDate)));
+  if (opts.endDate !== undefined) url.searchParams.set("end-date", String(Math.floor(opts.endDate)));
+  if (opts.pending) url.searchParams.set("pending", "1");
+  if (opts.balancesOnly) url.searchParams.set("balances-only", "1");
+  for (const id of opts.accountIds ?? []) url.searchParams.append("account", id);
 
   let response: Response;
   try {
-    response = await fetch(requestUrl, {
-      cache: "no-store",
-      headers: { Authorization: authHeader },
-    });
+    response = await fetch(url, { cache: "no-store", headers: { Authorization: auth } });
   } catch {
-    throw new UpstreamError("Could not reach SimpleFin. Check your network connection and try again.");
+    throw new UpstreamError("Could not reach SimpleFin. Try again later.");
   }
-
-  if (!response.ok) {
-    throw new UpstreamError(`SimpleFin returned an error (status ${response.status}).`);
+  if (response.status === 403) {
+    throw new UpstreamError("SimpleFin rejected this connection (access revoked or disabled). Create a new connector URL.");
   }
+  if (response.status === 402) throw new UpstreamError("SimpleFin says payment is required for this account.");
+  if (!response.ok) throw new UpstreamError(`SimpleFin returned an error (status ${response.status}).`);
 
-  let data: RawSimpleFinResponse;
+  let data: unknown;
   try {
-    data = (await response.json()) as RawSimpleFinResponse;
+    data = await response.json();
   } catch {
     throw new UpstreamError("SimpleFin returned a response that could not be read.");
   }
-
-  if (!Array.isArray(data.accounts)) {
+  if (!data || typeof data !== "object" || !Array.isArray((data as Raw).accounts)) {
     throw new UpstreamError("SimpleFin returned an unexpected response shape.");
   }
-
-  return data.accounts
-    .map((account) => parseAccount(account as RawSimpleFinAccount))
-    .filter((account): account is SimpleFinAccount => account !== null);
-}
-
-export type InstitutionBalances = {
-  orgName: string;
-  accounts: SimpleFinAccount[];
-};
-
-export function groupByInstitution(accounts: SimpleFinAccount[]): InstitutionBalances[] {
-  const groups = new Map<string, SimpleFinAccount[]>();
-  for (const account of accounts) {
-    const group = groups.get(account.orgName);
-    if (group) {
-      group.push(account);
-    } else {
-      groups.set(account.orgName, [account]);
-    }
-  }
-  return Array.from(groups.entries()).map(([orgName, orgAccounts]) => ({
-    orgName,
-    accounts: orgAccounts,
-  }));
-}
-
-/**
- * Fetches and groups balances by institution. Propagates fetchSimpleFinAccounts' errors unchanged.
- */
-export async function getBalances(accessUrl: string): Promise<InstitutionBalances[]> {
-  return groupByInstitution(await fetchSimpleFinAccounts(accessUrl));
+  return parseAccountSet(data as Raw);
 }
