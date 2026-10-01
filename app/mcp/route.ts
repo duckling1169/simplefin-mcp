@@ -1,20 +1,32 @@
-import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import { AsyncLocalStorage } from "node:async_hooks";
 
+import { createMcpHandler } from "mcp-handler";
+
+import { accessUrlForKey } from "../../lib/connections";
+
+import { extractBearerKey, isAuthorized } from "../../lib/mcp-auth";
 import { getBalances } from "../../lib/simplefin";
-import { verifyToken } from "../../lib/verify-token";
 
 /**
  * MCP Streamable HTTP endpoint exposing a single tool, get_balances, backed by the
  * same shared SimpleFin module the dashboard page uses (lib/simplefin.ts).
  *
- * Auth: standard MCP OAuth. withMcpAuth answers unauthenticated requests with a 401 whose
- * WWW-Authenticate points at /.well-known/oauth-protected-resource, which names Supabase's
- * OAuth 2.1 server -- so clients like claude.ai run the sign-in flow. Tokens are checked in
- * lib/verify-token.ts (Supabase JWT + MCP_ALLOWED_EMAILS, or the static MCP_BEARER_KEY).
- * A rejected request never reaches get_balances, so no SimpleFin call is made.
+ * Auth: either a per-connection key minted by /setup (see lib/connections.ts) or the
+ * operator's static MCP_BEARER_KEY (see lib/mcp-auth.ts), checked before the handler runs.
+ * A missing/wrong key never reaches get_balances, so no SimpleFin call is attempted.
+ *
+ * The rejection response below is a 401 with a JSON body and a `WWW-Authenticate:
+ * Bearer` header (not a bare, bodyless 401) -- matching js/ember-finance's
+ * src/app/api/mcp/route.ts, which found that some MCP clients treat a bare 401 as an
+ * invitation to attempt OAuth auto-registration. Responding with a normal Bearer
+ * challenge instead avoids that.
  */
 
 export const runtime = "nodejs";
+
+// The resolved SimpleFin access URL for the current request (per-connection, or the
+// operator's SIMPLEFIN_ACCESS_URL when the static MCP_BEARER_KEY is used).
+const requestAccessUrl = new AsyncLocalStorage<string | undefined>();
 
 const handler = createMcpHandler(
   (server) => {
@@ -28,7 +40,7 @@ const handler = createMcpHandler(
       },
       async () => {
         try {
-          const groups = await getBalances();
+          const groups = await getBalances(requestAccessUrl.getStore());
           return { content: [{ type: "text", text: JSON.stringify(groups, null, 2) }] };
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to fetch balances.";
@@ -41,20 +53,27 @@ const handler = createMcpHandler(
   { basePath: "", maxDuration: 60, disableSse: true },
 );
 
-const authed = withMcpAuth(handler, verifyToken, {
-  required: true,
-  resourceMetadataPath: "/.well-known/oauth-protected-resource",
-});
+function unauthorized(): Response {
+  return new Response(
+    JSON.stringify({ error: "Missing or invalid bearer key. Pass it as an Authorization: Bearer header or a ?key= query param." }),
+    {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": 'Bearer realm="simplefin-mcp-mcp"',
+      },
+    },
+  );
+}
 
-/** Lets ?key=<MCP_BEARER_KEY> stand in for the Authorization header (clients that can't set one). */
-function handleAuthed(req: Request): Promise<Response> {
-  const key = new URL(req.url).searchParams.get("key");
-  if (key && !req.headers.get("authorization")) {
-    const headers = new Headers(req.headers);
-    headers.set("authorization", `Bearer ${key}`);
-    req = new Request(req, { headers });
+async function handleAuthed(req: Request): Promise<Response> {
+  if (isAuthorized(req)) {
+    return requestAccessUrl.run(undefined, () => handler(req));
   }
-  return authed(req);
+  const key = extractBearerKey(req);
+  const accessUrl = key ? await accessUrlForKey(key).catch(() => null) : null;
+  if (!accessUrl) return unauthorized();
+  return requestAccessUrl.run(accessUrl, () => handler(req));
 }
 
 export { handleAuthed as GET, handleAuthed as POST, handleAuthed as DELETE };
