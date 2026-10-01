@@ -36,7 +36,12 @@ export function mccCategory(mcc: string | null): string {
   if (!Number.isFinite(code)) return "Uncategorized";
   let best: [number, number, string] | undefined;
   for (const r of RANGES) {
-    if (code >= r[0] && code <= r[1] && (!best || r[1] - r[0] < best[1] - best[0])) best = r;
+    if (
+      code >= r[0] &&
+      code <= r[1] &&
+      (!best || r[1] - r[0] < best[1] - best[0])
+    )
+      best = r;
   }
   return best ? best[2] : `MCC ${mcc}`;
 }

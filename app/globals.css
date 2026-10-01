@@ -16,7 +16,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.5 system-ui, sans-serif;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
 }
 main {
   max-width: 36rem;
@@ -28,10 +30,21 @@ main {
   justify-content: center;
   gap: 1rem;
 }
-h1 { font-family: Georgia, serif; font-size: 2rem; margin: 0; }
-form { display: flex; flex-direction: column; gap: 0.75rem; }
-textarea, input {
-  font: 14px ui-monospace, monospace;
+h1 {
+  font-family: Georgia, serif;
+  font-size: 2rem;
+  margin: 0;
+}
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+textarea,
+input {
+  font:
+    14px ui-monospace,
+    monospace;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -47,5 +60,9 @@ button {
   color: #fff;
   cursor: pointer;
 }
-button:disabled { opacity: 0.6; }
-.error { color: #d6336c; }
+button:disabled {
+  opacity: 0.6;
+}
+.error {
+  color: #d6336c;
+}
