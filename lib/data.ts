@@ -2,14 +2,14 @@ import {
   type ConnectionHandle,
   readSnapshot,
   writeSnapshot,
-} from "./connections";
+} from "@/lib/connections";
 import {
   type AccountSet,
   DAY,
   fetchAccountSet,
   MAX_WINDOW_DAYS,
   type Transaction,
-} from "./simplefin";
+} from "@/lib/simplefin";
 
 // SimpleFin Bridge allows ~24 requests/day and refreshes data about daily, so every tool reads a
 // cached snapshot (balances, ~89 days of transactions incl. pending, holdings, errors -- two

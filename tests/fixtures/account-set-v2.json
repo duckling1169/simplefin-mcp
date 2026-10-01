@@ -1,0 +1,72 @@
+{
+  "errlist": [
+    {
+      "code": "con.auth",
+      "msg": "Re-authenticate Demo Bank",
+      "conn_id": "CON-1"
+    }
+  ],
+  "connections": [
+    {
+      "conn_id": "CON-1",
+      "name": "Demo",
+      "org_name": "Demo Bank",
+      "org_url": "https://demo.example"
+    }
+  ],
+  "accounts": [
+    {
+      "id": "ACT-1",
+      "name": "Checking",
+      "conn_id": "CON-1",
+      "currency": "USD",
+      "balance": "1000.50",
+      "available-balance": "900.00",
+      "balance-date": 1790000000,
+      "transactions": [
+        {
+          "id": "t1",
+          "posted": 1790000000,
+          "amount": "-50.00",
+          "description": "Grocer",
+          "payee": "Grocer",
+          "memo": null,
+          "transacted_at": 1789990000,
+          "mcc": 5411
+        },
+        {
+          "id": "t2",
+          "posted": 1790100000,
+          "amount": "-20.00",
+          "description": "Cafe",
+          "payee": "Cafe",
+          "memo": "latte",
+          "mcc": 5814,
+          "pending": true
+        },
+        {
+          "id": "t3",
+          "posted": 1790200000,
+          "amount": "2000.00",
+          "description": "Pay day!",
+          "payee": "You",
+          "mcc": null
+        },
+        {
+          "id": "bad",
+          "amount": "1"
+        }
+      ],
+      "holdings": [
+        {
+          "id": "h1",
+          "symbol": "AAPL",
+          "shares": "10",
+          "market_value": "2000",
+          "cost_basis": "500",
+          "currency": "USD"
+        }
+      ]
+    }
+  ]
+}

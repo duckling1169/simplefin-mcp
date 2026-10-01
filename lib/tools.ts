@@ -1,6 +1,6 @@
-import type { TransactionRow } from "./data";
-import { mccCategory } from "./mcc";
-import type { AccountSet } from "./simplefin";
+import type { TransactionRow } from "@/lib/data";
+import { mccCategory } from "@/lib/mcc";
+import type { AccountSet } from "@/lib/simplefin";
 
 // Pure shaping for MCP tool output. Amounts follow SimpleFin: negative = money out.
 

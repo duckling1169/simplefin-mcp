@@ -5,7 +5,7 @@ import {
   seal,
   unseal,
   SetupTokenError,
-} from "../lib/connections";
+} from "@/lib/connections";
 
 const b64 = (s: string) => Buffer.from(s).toString("base64");
 
