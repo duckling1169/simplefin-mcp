@@ -9,7 +9,9 @@ https://simplefin-mcp.vercel.app.
 2. Paste it at https://simplefin-mcp.vercel.app. The page claims it and shows a connector URL once.
 3. Add that URL as a custom connector (MCP server) in Claude, ChatGPT, or any MCP client.
 
-Tool: `get_balances` — balances grouped by institution.
+Tools (read-only): `list_accounts`, `get_transactions`, `spending_summary`, `get_holdings`,
+`get_connection_status`. Data is cached per connection for 4 hours (`lib/data.ts`) because
+SimpleFin Bridge allows ~24 requests/day and recommends at most 45 days per request.
 
 ## How it works
 
