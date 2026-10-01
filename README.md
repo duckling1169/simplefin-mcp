@@ -1,13 +1,14 @@
-# simplefin-mcp
+# SimpleFIN MCP
 
-An MCP server for [SimpleFin](https://www.simplefin.org/) account balances, deployed at
+Connect your finances to your agents: a self-hosted MCP server for [SimpleFIN](https://www.simplefin.org/), deployed at
 https://simplefin-mcp.vercel.app.
 
 ## Use
 
-1. Create a setup token in [SimpleFin Bridge](https://beta-bridge.simplefin.org/).
-2. Paste it at https://simplefin-mcp.vercel.app. The page claims it and shows a connector URL once.
-3. Add that URL as a custom connector (MCP server) in Claude, ChatGPT, or any MCP client.
+1. Deploy your own copy with an `OWNER_PASSWORD`, the Supabase integration, and the SQL in `supabase/migrations`.
+2. Create a setup token in [SimpleFin Bridge](https://beta-bridge.simplefin.org/).
+3. Paste it on `/setup` (unlocked with `OWNER_PASSWORD`). You get a connector URL, shown once.
+4. Add that URL as a custom connector (MCP server) in Claude, ChatGPT, or any MCP client.
 
 Tools (read-only): `list_accounts`, `get_transactions`, `spending_summary`, `get_holdings`,
 `get_connection_status`. Data is cached per connection for 4 hours (`lib/data.ts`) because
