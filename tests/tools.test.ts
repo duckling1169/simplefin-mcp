@@ -50,7 +50,7 @@ describe("tools", () => {
   });
 
   it("reports holdings and connection errors", () => {
-    expect(listHoldings(set)[0].holdings[0]).toMatchObject({
+    expect(listHoldings(set)[0]?.holdings[0]).toMatchObject({
       symbol: "AAPL",
       gain: 1500,
     });

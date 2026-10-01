@@ -54,6 +54,7 @@ export function unseal(ciphertext: string, key: string): string {
   const [iv, tag, data] = ciphertext
     .split(".")
     .map((p) => Buffer.from(p, "base64url"));
+  if (!iv || !tag || !data) throw new Error("Malformed ciphertext.");
   const decipher = createDecipheriv("aes-256-gcm", aesKey(key), iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString(
@@ -142,7 +143,8 @@ export async function loadConnection(
   if (!res.ok)
     throw new Error(`Failed to look up connection (HTTP ${res.status}).`);
   const rows = (await res.json()) as { access_url_ciphertext: string }[];
-  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (!row) return null;
   void fetch(`${rest}/connections?key_hash=eq.${keyHash}`, {
     method: "PATCH",
     headers,
@@ -151,7 +153,7 @@ export async function loadConnection(
   return {
     key,
     keyHash,
-    accessUrl: unseal(rows[0].access_url_ciphertext, key),
+    accessUrl: unseal(row.access_url_ciphertext, key),
   };
 }
 
@@ -169,11 +171,12 @@ export async function readSnapshot(
     ciphertext: string;
     fetched_at: string;
   }[];
-  if (rows.length === 0) return null;
+  const row = rows[0];
+  if (!row) return null;
   try {
     return {
-      json: unseal(rows[0].ciphertext, conn.key),
-      fetchedAt: Date.parse(rows[0].fetched_at),
+      json: unseal(row.ciphertext, conn.key),
+      fetchedAt: Date.parse(row.fetched_at),
     };
   } catch {
     return null;

@@ -56,6 +56,7 @@ export function AskBar() {
   }, [auto]);
 
   const tool = TOOLS[index];
+  if (!tool) return null;
 
   return (
     <div className="ask">
