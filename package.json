@@ -6,9 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit",
+    "format": "prettier --write app lib tests *.ts",
+    "format:check": "prettier --check app lib tests *.ts",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "verify": "pnpm format:check && pnpm typecheck && pnpm test"
   },

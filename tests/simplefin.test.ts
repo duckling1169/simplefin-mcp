@@ -15,7 +15,7 @@ const V2 = loadFixture("account-set-v2.json") as Record<string, unknown>;
 describe("parseAccountSet", () => {
   it("parses version 2 accounts, transactions, holdings, connections and errors", () => {
     const set = parseAccountSet(V2);
-    const [a] = set.accounts;
+    const a = set.accounts[0]!;
     expect(a.institution).toBe("Demo Bank");
     expect(a.balance).toBe(1000.5);
     expect(a.availableBalance).toBe(900);
@@ -52,8 +52,8 @@ describe("parseAccountSet", () => {
         },
       ],
     });
-    expect(set.accounts[0].institution).toBe("bank.example");
-    expect(set.errors[0].message).toBe("oops");
+    expect(set.accounts[0]?.institution).toBe("bank.example");
+    expect(set.errors[0]?.message).toBe("oops");
   });
 });
 
