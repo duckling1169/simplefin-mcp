@@ -1,5 +1,15 @@
-import { type ConnectionHandle, readSnapshot, writeSnapshot } from "./connections";
-import { type AccountSet, DAY, fetchAccountSet, MAX_WINDOW_DAYS, type Transaction } from "./simplefin";
+import {
+  type ConnectionHandle,
+  readSnapshot,
+  writeSnapshot,
+} from "./connections";
+import {
+  type AccountSet,
+  DAY,
+  fetchAccountSet,
+  MAX_WINDOW_DAYS,
+  type Transaction,
+} from "./simplefin";
 
 // SimpleFin Bridge allows ~24 requests/day and refreshes data about daily, so every tool reads a
 // cached snapshot (balances, ~89 days of transactions incl. pending, holdings, errors -- two
@@ -11,7 +21,10 @@ export const MAX_HISTORY_WINDOWS = 4;
 
 export type Snapshot = AccountSet & { fetchedAt: number; windowStart: number };
 
-export async function getSnapshot(conn: ConnectionHandle, opts: { refresh?: boolean } = {}): Promise<Snapshot> {
+export async function getSnapshot(
+  conn: ConnectionHandle,
+  opts: { refresh?: boolean } = {},
+): Promise<Snapshot> {
   if (!opts.refresh) {
     const cached = await readSnapshot(conn);
     if (cached && Date.now() - cached.fetchedAt < SNAPSHOT_TTL_MS) {
@@ -23,24 +36,50 @@ export async function getSnapshot(conn: ConnectionHandle, opts: { refresh?: bool
   // request starts a day later to stay within the 45-day recommendation.
   const mid = now - (MAX_WINDOW_DAYS - 1) * DAY;
   const windowStart = mid - MAX_WINDOW_DAYS * DAY;
-  const recent = await fetchAccountSet(conn.accessUrl, { startDate: mid, pending: true });
-  const older = await fetchAccountSet(conn.accessUrl, { startDate: windowStart, endDate: mid });
+  const recent = await fetchAccountSet(conn.accessUrl, {
+    startDate: mid,
+    pending: true,
+  });
+  const older = await fetchAccountSet(conn.accessUrl, {
+    startDate: windowStart,
+    endDate: mid,
+  });
   const olderById = new Map(older.accounts.map((a) => [a.id, a.transactions]));
   const recentIds = (txns: { id: string }[]) => new Set(txns.map((t) => t.id));
   const accounts = recent.accounts.map((a) => {
     const seen = recentIds(a.transactions);
-    return { ...a, transactions: [...a.transactions, ...(olderById.get(a.id) ?? []).filter((t) => !seen.has(t.id))] };
+    return {
+      ...a,
+      transactions: [
+        ...a.transactions,
+        ...(olderById.get(a.id) ?? []).filter((t) => !seen.has(t.id)),
+      ],
+    };
   });
-  const snapshot: Snapshot = { ...recent, accounts, fetchedAt: Date.now(), windowStart };
+  const snapshot: Snapshot = {
+    ...recent,
+    accounts,
+    fetchedAt: Date.now(),
+    windowStart,
+  };
   await writeSnapshot(conn, JSON.stringify(snapshot));
   return snapshot;
 }
 
-export type TransactionRow = Transaction & { accountId: string; accountName: string; institution: string };
+export type TransactionRow = Transaction & {
+  accountId: string;
+  accountName: string;
+  institution: string;
+};
 
 export function flattenTransactions(set: AccountSet): TransactionRow[] {
   return set.accounts.flatMap((a) =>
-    a.transactions.map((t) => ({ ...t, accountId: a.id, accountName: a.name, institution: a.institution })),
+    a.transactions.map((t) => ({
+      ...t,
+      accountId: a.id,
+      accountName: a.name,
+      institution: a.institution,
+    })),
   );
 }
 
@@ -64,8 +103,16 @@ export async function getTransactionsInRange(
   let windows = 0;
   while (windowEnd > start && windows < MAX_HISTORY_WINDOWS) {
     const windowStart = Math.max(start, windowEnd - MAX_WINDOW_DAYS * DAY);
-    const set = await fetchAccountSet(conn.accessUrl, { startDate: windowStart, endDate: windowEnd, accountIds });
-    rows.push(...flattenTransactions(set).filter((t) => t.posted >= windowStart && t.posted < windowEnd));
+    const set = await fetchAccountSet(conn.accessUrl, {
+      startDate: windowStart,
+      endDate: windowEnd,
+      accountIds,
+    });
+    rows.push(
+      ...flattenTransactions(set).filter(
+        (t) => t.posted >= windowStart && t.posted < windowEnd,
+      ),
+    );
     windowEnd = windowStart;
     windows++;
   }

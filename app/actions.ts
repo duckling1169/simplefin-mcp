@@ -6,7 +6,10 @@ import { createConnection, SetupTokenError } from "../lib/connections";
 
 export type SetupState = { url?: string; error?: string };
 
-export async function claimSetupToken(_prev: SetupState, form: FormData): Promise<SetupState> {
+export async function claimSetupToken(
+  _prev: SetupState,
+  form: FormData,
+): Promise<SetupState> {
   const token = String(form.get("token") ?? "").trim();
   if (!token) return { error: "Paste a setup token." };
   try {
@@ -16,6 +19,11 @@ export async function claimSetupToken(_prev: SetupState, form: FormData): Promis
     return { url: `${origin}/mcp?key=${key}` };
   } catch (error) {
     // Never echo the token or SimpleFin's response body.
-    return { error: error instanceof SetupTokenError ? error.message : "Something went wrong. Try again." };
+    return {
+      error:
+        error instanceof SetupTokenError
+          ? error.message
+          : "Something went wrong. Try again.",
+    };
   }
 }

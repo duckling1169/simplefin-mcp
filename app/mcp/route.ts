@@ -22,12 +22,19 @@ export const runtime = "nodejs";
 
 const requestConnection = new AsyncLocalStorage<ConnectionHandle>();
 
-type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+type ToolResult = {
+  content: { type: "text"; text: string }[];
+  isError?: boolean;
+};
 
-async function run(fn: (conn: ConnectionHandle) => Promise<unknown>): Promise<ToolResult> {
+async function run(
+  fn: (conn: ConnectionHandle) => Promise<unknown>,
+): Promise<ToolResult> {
   try {
     const result = await fn(requestConnection.getStore()!);
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed.";
     return { content: [{ type: "text", text: message }], isError: true };
@@ -40,7 +47,8 @@ const toUnix = (d: string) => Math.floor(Date.parse(`${d}T00:00:00Z`) / 1000);
 function range(start?: string, end?: string, defaultDays = 30) {
   const endUnix = end ? toUnix(end) + DAY : Math.floor(Date.now() / 1000) + DAY;
   const startUnix = start ? toUnix(start) : endUnix - (defaultDays + 1) * DAY;
-  if (startUnix >= endUnix) throw new Error("start_date must be on or before end_date.");
+  if (startUnix >= endUnix)
+    throw new Error("start_date must be on or before end_date.");
   return { startUnix, endUnix };
 }
 
@@ -55,7 +63,12 @@ const handler = createMcpHandler(
         title: "List accounts",
         description: `All accounts grouped by institution with balance, available balance and IDs. ${CACHE_NOTE}`,
         inputSchema: {
-          refresh: z.boolean().optional().describe("Bypass the cache. Uses SimpleFin's daily quota; avoid unless asked."),
+          refresh: z
+            .boolean()
+            .optional()
+            .describe(
+              "Bypass the cache. Uses SimpleFin's daily quota; avoid unless asked.",
+            ),
         },
         annotations: { readOnlyHint: true },
       },
@@ -82,12 +95,24 @@ const handler = createMcpHandler(
         inputSchema: {
           start_date: isoDate.optional().describe("Inclusive, YYYY-MM-DD"),
           end_date: isoDate.optional().describe("Inclusive, YYYY-MM-DD"),
-          account_ids: z.array(z.string()).optional().describe("From list_accounts"),
-          query: z.string().optional().describe("Case-insensitive match on description, payee or memo"),
+          account_ids: z
+            .array(z.string())
+            .optional()
+            .describe("From list_accounts"),
+          query: z
+            .string()
+            .optional()
+            .describe("Case-insensitive match on description, payee or memo"),
           min_amount: z.number().optional(),
           max_amount: z.number().optional(),
           include_pending: z.boolean().optional().describe("Default true"),
-          limit: z.number().int().min(1).max(500).optional().describe("Default 100"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(500)
+            .optional()
+            .describe("Default 100"),
         },
         annotations: { readOnlyHint: true },
       },
@@ -95,7 +120,13 @@ const handler = createMcpHandler(
         run(async (conn) => {
           const { startUnix, endUnix } = range(args.start_date, args.end_date);
           const snap = await getSnapshot(conn);
-          const { rows, note } = await getTransactionsInRange(conn, snap, startUnix, endUnix, args.account_ids);
+          const { rows, note } = await getTransactionsInRange(
+            conn,
+            snap,
+            startUnix,
+            endUnix,
+            args.account_ids,
+          );
           const matched = filterTransactions(rows, {
             query: args.query,
             includePending: args.include_pending,
@@ -123,9 +154,18 @@ const handler = createMcpHandler(
         inputSchema: {
           start_date: isoDate.optional(),
           end_date: isoDate.optional(),
-          group_by: z.enum(["payee", "category", "account", "month"]).optional().describe("Default payee"),
+          group_by: z
+            .enum(["payee", "category", "account", "month"])
+            .optional()
+            .describe("Default payee"),
           account_ids: z.array(z.string()).optional(),
-          top: z.number().int().min(1).max(200).optional().describe("Groups to return, default 25"),
+          top: z
+            .number()
+            .int()
+            .min(1)
+            .max(200)
+            .optional()
+            .describe("Groups to return, default 25"),
         },
         annotations: { readOnlyHint: true },
       },
@@ -133,9 +173,21 @@ const handler = createMcpHandler(
         run(async (conn) => {
           const { startUnix, endUnix } = range(args.start_date, args.end_date);
           const snap = await getSnapshot(conn);
-          const { rows, note } = await getTransactionsInRange(conn, snap, startUnix, endUnix, args.account_ids);
-          const posted = filterTransactions(rows, { includePending: false, accountIds: args.account_ids });
-          return { ...summarize(posted, args.group_by ?? "payee", args.top), ...(note ? { historyNote: note } : {}) };
+          const { rows, note } = await getTransactionsInRange(
+            conn,
+            snap,
+            startUnix,
+            endUnix,
+            args.account_ids,
+          );
+          const posted = filterTransactions(rows, {
+            includePending: false,
+            accountIds: args.account_ids,
+          });
+          return {
+            ...summarize(posted, args.group_by ?? "payee", args.top),
+            ...(note ? { historyNote: note } : {}),
+          };
         }),
     );
 
@@ -143,7 +195,8 @@ const handler = createMcpHandler(
       "get_holdings",
       {
         title: "Get holdings",
-        description: "Investment positions (symbol, shares, market value, cost basis) for accounts that report them.",
+        description:
+          "Investment positions (symbol, shares, market value, cost basis) for accounts that report them.",
         inputSchema: {},
         annotations: { readOnlyHint: true },
       },
@@ -151,7 +204,9 @@ const handler = createMcpHandler(
         run(async (conn) => {
           const snap = await getSnapshot(conn);
           const accounts = listHoldings(snap);
-          return accounts.length ? accounts : { accounts: [], note: "No connected account reports holdings." };
+          return accounts.length
+            ? accounts
+            : { accounts: [], note: "No connected account reports holdings." };
         }),
     );
 
@@ -159,7 +214,8 @@ const handler = createMcpHandler(
       "get_connection_status",
       {
         title: "Connection status",
-        description: "Linked institutions and any errors SimpleFin reports (e.g. a bank needing re-authentication).",
+        description:
+          "Linked institutions and any errors SimpleFin reports (e.g. a bank needing re-authentication).",
         inputSchema: {},
         annotations: { readOnlyHint: true },
       },
@@ -176,7 +232,8 @@ const handler = createMcpHandler(
 
 function extractKey(req: Request): string | null {
   const header = req.headers.get("authorization") ?? "";
-  if (header.startsWith("Bearer ") && header.slice(7).trim()) return header.slice(7).trim();
+  if (header.startsWith("Bearer ") && header.slice(7).trim())
+    return header.slice(7).trim();
   return new URL(req.url).searchParams.get("key")?.trim() || null;
 }
 
@@ -184,8 +241,14 @@ function extractKey(req: Request): string | null {
 // mistake this for an invitation to attempt OAuth.
 function unauthorized(): Response {
   return Response.json(
-    { error: "Missing or invalid connection key. Get a connector URL from the setup page." },
-    { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="simplefin-mcp"' } },
+    {
+      error:
+        "Missing or invalid connection key. Get a connector URL from the setup page.",
+    },
+    {
+      status: 401,
+      headers: { "WWW-Authenticate": 'Bearer realm="simplefin-mcp"' },
+    },
   );
 }
 

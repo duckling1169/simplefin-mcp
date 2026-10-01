@@ -47,8 +47,17 @@ export type Account = {
   transactions: Transaction[];
   holdings: Holding[];
 };
-export type SimpleFinError = { code: string | null; message: string; connectionId: string | null; accountId: string | null };
-export type AccountSet = { connections: Connection[]; accounts: Account[]; errors: SimpleFinError[] };
+export type SimpleFinError = {
+  code: string | null;
+  message: string;
+  connectionId: string | null;
+  accountId: string | null;
+};
+export type AccountSet = {
+  connections: Connection[];
+  accounts: Account[];
+  errors: SimpleFinError[];
+};
 
 export type FetchOptions = {
   startDate?: number;
@@ -61,10 +70,18 @@ export type FetchOptions = {
 type Raw = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
 const num = (v: unknown) => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  const n =
+    typeof v === "number"
+      ? v
+      : typeof v === "string" && v.trim() !== ""
+        ? Number(v)
+        : NaN;
   return Number.isFinite(n) ? n : null;
 };
-const arr = (v: unknown): Raw[] => (Array.isArray(v) ? (v.filter((x) => x && typeof x === "object") as Raw[]) : []);
+const arr = (v: unknown): Raw[] =>
+  Array.isArray(v)
+    ? (v.filter((x) => x && typeof x === "object") as Raw[])
+    : [];
 
 function parseTransaction(raw: Raw): Transaction | null {
   const id = str(raw.id);
@@ -102,7 +119,15 @@ function parseHolding(raw: Raw): Holding | null {
 export function parseAccountSet(data: Raw): AccountSet {
   const connections: Connection[] = arr(data.connections).flatMap((c) => {
     const id = str(c.conn_id);
-    return id ? [{ id, name: str(c.org_name) ?? str(c.name) ?? id, orgUrl: str(c.org_url) }] : [];
+    return id
+      ? [
+          {
+            id,
+            name: str(c.org_name) ?? str(c.name) ?? id,
+            orgUrl: str(c.org_url),
+          },
+        ]
+      : [];
   });
   const connName = new Map(connections.map((c) => [c.id, c.name]));
 
@@ -119,12 +144,17 @@ export function parseAccountSet(data: Raw): AccountSet {
         name: str(a.name) ?? id,
         connectionId,
         institution:
-          (connectionId && connName.get(connectionId)) || str(org?.name) || str(org?.domain) || "Unknown institution",
+          (connectionId && connName.get(connectionId)) ||
+          str(org?.name) ||
+          str(org?.domain) ||
+          "Unknown institution",
         currency: str(a.currency) ?? "USD",
         balance,
         availableBalance: num(a["available-balance"]),
         balanceDate,
-        transactions: arr(a.transactions).flatMap((t) => parseTransaction(t) ?? []),
+        transactions: arr(a.transactions).flatMap(
+          (t) => parseTransaction(t) ?? [],
+        ),
         holdings: arr(a.holdings).flatMap((h) => parseHolding(h) ?? []),
       },
     ];
@@ -139,7 +169,12 @@ export function parseAccountSet(data: Raw): AccountSet {
     })),
     ...(Array.isArray(data.errors) ? data.errors : [])
       .filter((e): e is string => typeof e === "string")
-      .map((message) => ({ code: null, message, connectionId: null, accountId: null })),
+      .map((message) => ({
+        code: null,
+        message,
+        connectionId: null,
+        accountId: null,
+      })),
   ];
 
   return { connections, accounts, errors };
@@ -149,42 +184,69 @@ export function parseAccountSet(data: Raw): AccountSet {
  * One GET /accounts call. fetch() refuses URLs with embedded credentials, so they're moved into
  * an explicit Basic Auth header. Errors never include the access URL or the upstream body.
  */
-export async function fetchAccountSet(accessUrl: string, opts: FetchOptions = {}): Promise<AccountSet> {
+export async function fetchAccountSet(
+  accessUrl: string,
+  opts: FetchOptions = {},
+): Promise<AccountSet> {
   let url: URL;
   try {
     url = new URL(`${accessUrl.replace(/\/$/, "")}/accounts`);
   } catch {
     throw new UpstreamError("The stored SimpleFin access URL is not valid.");
   }
-  const auth = "Basic " + Buffer.from(`${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`).toString("base64");
+  const auth =
+    "Basic " +
+    Buffer.from(
+      `${decodeURIComponent(url.username)}:${decodeURIComponent(url.password)}`,
+    ).toString("base64");
   url.username = "";
   url.password = "";
   url.searchParams.set("version", "2");
-  if (opts.startDate !== undefined) url.searchParams.set("start-date", String(Math.floor(opts.startDate)));
-  if (opts.endDate !== undefined) url.searchParams.set("end-date", String(Math.floor(opts.endDate)));
+  if (opts.startDate !== undefined)
+    url.searchParams.set("start-date", String(Math.floor(opts.startDate)));
+  if (opts.endDate !== undefined)
+    url.searchParams.set("end-date", String(Math.floor(opts.endDate)));
   if (opts.pending) url.searchParams.set("pending", "1");
   if (opts.balancesOnly) url.searchParams.set("balances-only", "1");
-  for (const id of opts.accountIds ?? []) url.searchParams.append("account", id);
+  for (const id of opts.accountIds ?? [])
+    url.searchParams.append("account", id);
 
   let response: Response;
   try {
-    response = await fetch(url, { cache: "no-store", headers: { Authorization: auth } });
+    response = await fetch(url, {
+      cache: "no-store",
+      headers: { Authorization: auth },
+    });
   } catch {
     throw new UpstreamError("Could not reach SimpleFin. Try again later.");
   }
   if (response.status === 403) {
-    throw new UpstreamError("SimpleFin rejected this connection (access revoked or disabled). Create a new connector URL.");
+    throw new UpstreamError(
+      "SimpleFin rejected this connection (access revoked or disabled). Create a new connector URL.",
+    );
   }
-  if (response.status === 402) throw new UpstreamError("SimpleFin says payment is required for this account.");
-  if (!response.ok) throw new UpstreamError(`SimpleFin returned an error (status ${response.status}).`);
+  if (response.status === 402)
+    throw new UpstreamError(
+      "SimpleFin says payment is required for this account.",
+    );
+  if (!response.ok)
+    throw new UpstreamError(
+      `SimpleFin returned an error (status ${response.status}).`,
+    );
 
   let data: unknown;
   try {
     data = await response.json();
   } catch {
-    throw new UpstreamError("SimpleFin returned a response that could not be read.");
+    throw new UpstreamError(
+      "SimpleFin returned a response that could not be read.",
+    );
   }
-  if (!data || typeof data !== "object" || !Array.isArray((data as Raw).accounts)) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !Array.isArray((data as Raw).accounts)
+  ) {
     throw new UpstreamError("SimpleFin returned an unexpected response shape.");
   }
   return parseAccountSet(data as Raw);

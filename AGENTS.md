@@ -5,7 +5,7 @@ See `README.md` for purpose and architecture.
 ## Commands
 
 - Setup: `CI=true pnpm install --frozen-lockfile`
-- Check: `pnpm run verify` (lint, typecheck, test, build)
+- Check: `pnpm verify` (format, lint, typecheck, test); `pnpm build` before deploying
 
 ## Rules
 
