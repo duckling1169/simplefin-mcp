@@ -1,21 +1,17 @@
-import { createMcpHandler } from "mcp-handler";
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
 
-import { isAuthorized } from "../../lib/mcp-auth";
 import { getBalances } from "../../lib/simplefin";
+import { verifyToken } from "../../lib/verify-token";
 
 /**
  * MCP Streamable HTTP endpoint exposing a single tool, get_balances, backed by the
  * same shared SimpleFin module the dashboard page uses (lib/simplefin.ts).
  *
- * Auth: a static bearer key (MCP_BEARER_KEY), checked before the handler ever runs --
- * see lib/mcp-auth.ts. A missing/wrong key never reaches get_balances, so no SimpleFin
- * call is attempted for an unauthenticated request.
- *
- * The rejection response below is a 401 with a JSON body and a `WWW-Authenticate:
- * Bearer` header (not a bare, bodyless 401) -- matching js/ember-finance's
- * src/app/api/mcp/route.ts, which found that some MCP clients treat a bare 401 as an
- * invitation to attempt OAuth auto-registration. Responding with a normal Bearer
- * challenge instead avoids that.
+ * Auth: standard MCP OAuth. withMcpAuth answers unauthenticated requests with a 401 whose
+ * WWW-Authenticate points at /.well-known/oauth-protected-resource, which names Supabase's
+ * OAuth 2.1 server -- so clients like claude.ai run the sign-in flow. Tokens are checked in
+ * lib/verify-token.ts (Supabase JWT + MCP_ALLOWED_EMAILS, or the static MCP_BEARER_KEY).
+ * A rejected request never reaches get_balances, so no SimpleFin call is made.
  */
 
 export const runtime = "nodejs";
@@ -45,24 +41,20 @@ const handler = createMcpHandler(
   { basePath: "", maxDuration: 60, disableSse: true },
 );
 
-function unauthorized(): Response {
-  return new Response(
-    JSON.stringify({ error: "Missing or invalid bearer key. Pass it as an Authorization: Bearer header or a ?key= query param." }),
-    {
-      status: 401,
-      headers: {
-        "Content-Type": "application/json",
-        "WWW-Authenticate": 'Bearer realm="simplefin-mcp-mcp"',
-      },
-    },
-  );
-}
+const authed = withMcpAuth(handler, verifyToken, {
+  required: true,
+  resourceMetadataPath: "/.well-known/oauth-protected-resource",
+});
 
-async function handleAuthed(req: Request): Promise<Response> {
-  if (!isAuthorized(req)) {
-    return unauthorized();
+/** Lets ?key=<MCP_BEARER_KEY> stand in for the Authorization header (clients that can't set one). */
+function handleAuthed(req: Request): Promise<Response> {
+  const key = new URL(req.url).searchParams.get("key");
+  if (key && !req.headers.get("authorization")) {
+    const headers = new Headers(req.headers);
+    headers.set("authorization", `Bearer ${key}`);
+    req = new Request(req, { headers });
   }
-  return handler(req);
+  return authed(req);
 }
 
 export { handleAuthed as GET, handleAuthed as POST, handleAuthed as DELETE };
