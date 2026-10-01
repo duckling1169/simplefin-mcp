@@ -1,4 +1,4 @@
-# simplefin-dashboard
+# simplefin-mcp
 
 A local web page showing current account balances aggregated via SimpleFin, grouped by institution.
 

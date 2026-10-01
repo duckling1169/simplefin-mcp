@@ -41,7 +41,7 @@ const handler = createMcpHandler(
       },
     );
   },
-  { serverInfo: { name: "simplefin-dashboard", version: "0.0.0" } },
+  { serverInfo: { name: "simplefin-mcp", version: "0.0.0" } },
   { basePath: "", maxDuration: 60, disableSse: true },
 );
 
@@ -52,7 +52,7 @@ function unauthorized(): Response {
       status: 401,
       headers: {
         "Content-Type": "application/json",
-        "WWW-Authenticate": 'Bearer realm="simplefin-dashboard-mcp"',
+        "WWW-Authenticate": 'Bearer realm="simplefin-mcp-mcp"',
       },
     },
   );

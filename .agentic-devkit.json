@@ -187,7 +187,7 @@
     "software-project",
     "orchestrator-overlay"
   ],
-  "project_name": "simplefin-dashboard",
+  "project_name": "simplefin-mcp",
   "schema_version": 1,
   "source": {
     "commit": "574afd50c95b60b6f123ff44cdcb8622c9565270",
