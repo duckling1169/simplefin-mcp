@@ -1,54 +1,93 @@
-"use client";
+import { AskBar } from "./_components/AskBar";
 
-import { useActionState } from "react";
-
-import { claimSetupToken, type SetupState } from "./actions";
+const REPO = "https://github.com/duckling1169/simplefin-mcp";
+const DEPLOY =
+  "https://vercel.com/new/clone?repository-url=" +
+  encodeURIComponent(REPO) +
+  "&env=OWNER_PASSWORD&envDescription=" +
+  encodeURIComponent("Any long password. It unlocks /setup.");
 
 export default function Home() {
-  const [state, action, pending] = useActionState<SetupState, FormData>(
-    claimSetupToken,
-    {},
-  );
-
   return (
     <main>
-      <h1>Connect SimpleFin to an AI assistant</h1>
-      {state.url ? (
-        <>
-          <p>
-            Add this as a custom connector (MCP server URL) in Claude, ChatGPT,
-            or any MCP client. It is shown <strong>once</strong> — anyone with
-            it can read your balances, so treat it like a password.
+      <section className="hero sky">
+        <nav className="nav" aria-label="Main">
+          <span className="wordmark">SimpleFIN MCP</span>
+          <span className="nav-links">
+            <a href={REPO}>GitHub</a>
+            <a className="button" href="/setup">
+              Set up
+            </a>
+          </span>
+        </nav>
+
+        <h1>Connect your finances to your agents</h1>
+        <p className="lede">
+          Your bank accounts, available to Claude, ChatGPT and any MCP client.
+          Read-only, and hosted by you.
+        </p>
+        <AskBar />
+      </section>
+
+      <section className="steps-section on-horizon" aria-labelledby="setup">
+        <div className="steps-inner">
+          <h2 id="setup">Set it up</h2>
+          <p>About ten minutes. You need a Vercel and a Supabase account.</p>
+          <ol className="steps">
+            <li>
+              <div>
+                <h3>Deploy your own copy</h3>
+                <p>
+                  Choose an <code>OWNER_PASSWORD</code>, add the Supabase
+                  integration, and run the SQL in{" "}
+                  <code>supabase/migrations</code>.
+                </p>
+              </div>
+              <a className="button dark" href={DEPLOY}>
+                Deploy to Vercel
+              </a>
+            </li>
+            <li>
+              <div>
+                <h3>Get a SimpleFIN setup token</h3>
+                <p>
+                  Link your banks in SimpleFIN Bridge (a small paid service) and
+                  create a setup token.
+                </p>
+              </div>
+              <a
+                className="button dark"
+                href="https://beta-bridge.simplefin.org/"
+              >
+                Open SimpleFIN
+              </a>
+            </li>
+            <li>
+              <div>
+                <h3>Claim it on your setup page</h3>
+                <p>
+                  Paste the token at <code>/setup</code> on your deployment. You
+                  get a connector URL, shown once.
+                </p>
+              </div>
+            </li>
+            <li>
+              <div>
+                <h3>Add it to your assistant</h3>
+                <p>
+                  Paste the URL as a custom connector in Claude, ChatGPT or
+                  Cursor. The setup page shows where.
+                </p>
+              </div>
+            </li>
+          </ol>
+          <p className="footnote">
+            Your bank login never reaches this server. It stores a SimpleFIN
+            access URL, encrypted with a key that exists only in your connector
+            URL.
           </p>
-          <input
-            readOnly
-            value={state.url}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-          <button onClick={() => navigator.clipboard.writeText(state.url!)}>
-            Copy URL
-          </button>
-        </>
-      ) : (
-        <form action={action}>
-          <p>
-            Create a setup token in{" "}
-            <a
-              href="https://beta-bridge.simplefin.org/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              SimpleFin Bridge
-            </a>{" "}
-            and paste it below. Tokens work once.
-          </p>
-          <textarea name="token" rows={4} required />
-          <button disabled={pending}>
-            {pending ? "Claiming…" : "Get connector URL"}
-          </button>
-          {state.error && <p className="error">{state.error}</p>}
-        </form>
-      )}
+        </div>
+      </section>
     </main>
   );
 }

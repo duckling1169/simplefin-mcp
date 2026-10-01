@@ -6,6 +6,8 @@ import {
   randomBytes,
 } from "node:crypto";
 
+import { fetchAccountSet } from "@/lib/simplefin";
+
 // Server-only. A "connection" is one claimed SimpleFin setup token. The user gets back a random
 // connection key (embedded in their connector URL). We store only:
 //   - SHA-256(key), for lookup
@@ -100,6 +102,11 @@ export async function createConnection(setupToken: string): Promise<string> {
   if (!accessUrl.startsWith("https://"))
     throw new SetupTokenError("SimpleFin returned an unexpected response.");
 
+  // One balances-only request names the connection for the owner's list.
+  const label = await fetchAccountSet(accessUrl, { balancesOnly: true })
+    .then((set) => set.connections.map((c) => c.name).join(", ") || null)
+    .catch(() => null);
+
   const key = randomBytes(32).toString("base64url");
   const { rest, headers } = supabaseConfig();
   const insert = await fetch(`${rest}/connections`, {
@@ -108,6 +115,7 @@ export async function createConnection(setupToken: string): Promise<string> {
     body: JSON.stringify({
       key_hash: hashKey(key),
       access_url_ciphertext: seal(accessUrl, key),
+      label,
     }),
   });
   if (!insert.ok)
@@ -189,4 +197,44 @@ export async function writeSnapshot(
       fetched_at: new Date().toISOString(),
     }),
   }).catch(() => {});
+}
+
+export type ConnectionSummary = {
+  keyHash: string;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
+
+export async function listConnections(): Promise<ConnectionSummary[]> {
+  const { rest, headers } = supabaseConfig();
+  const res = await fetch(
+    `${rest}/connections?select=key_hash,label,created_at,last_used_at&order=created_at`,
+    { headers, cache: "no-store" },
+  );
+  if (!res.ok)
+    throw new Error(`Failed to list connections (HTTP ${res.status}).`);
+  const rows = (await res.json()) as {
+    key_hash: string;
+    label: string | null;
+    created_at: string;
+    last_used_at: string | null;
+  }[];
+  return rows.map((r) => ({
+    keyHash: r.key_hash,
+    label: r.label,
+    createdAt: r.created_at,
+    lastUsedAt: r.last_used_at,
+  }));
+}
+
+/** Deletes a connection; its cached snapshot goes with it (on delete cascade). */
+export async function revokeConnection(keyHash: string): Promise<void> {
+  const { rest, headers } = supabaseConfig();
+  const res = await fetch(
+    `${rest}/connections?key_hash=eq.${encodeURIComponent(keyHash)}`,
+    { method: "DELETE", headers },
+  );
+  if (!res.ok)
+    throw new Error(`Failed to revoke connection (HTTP ${res.status}).`);
 }
