@@ -1,97 +1,50 @@
-import {
-  getBalances,
-  MissingCredentialError,
-  type InstitutionBalances,
-  type SimpleFinAccount,
-} from "../lib/simplefin";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Kicker, Panel } from "../components/ui/panel";
+"use client";
 
-function formatBalance(account: SimpleFinAccount): string {
-  const amount = Number(account.balance);
-  if (Number.isNaN(amount)) {
-    return `${account.balance} ${account.currency}`;
-  }
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: account.currency,
-    }).format(amount);
-  } catch {
-    return `${account.balance} ${account.currency}`;
-  }
-}
+import { useActionState } from "react";
 
-function formatAsOf(account: SimpleFinAccount): string {
-  return new Date(account.balanceDate * 1000).toLocaleString();
-}
+import { claimSetupToken, type SetupState } from "./actions";
 
-function PageHeader() {
-  return (
-    <Panel className="mb-6 w-full sm:mb-10" shape="chamfer-tr" fillClassName="p-4 sm:p-6">
-      <Kicker tone="orange">SimpleFin</Kicker>
-      <h1 className="font-serif text-2xl leading-tight break-words sm:text-3xl">Balances</h1>
-    </Panel>
-  );
-}
-
-export default async function Home() {
-  let groups: InstitutionBalances[];
-  try {
-    groups = await getBalances();
-  } catch (error) {
-    const message =
-      error instanceof MissingCredentialError
-        ? "SimpleFin is not configured. Set SIMPLEFIN_ACCESS_URL in your environment and reload."
-        : "Could not load accounts from SimpleFin. Please try again later.";
-    return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-        <PageHeader />
-        <p role="alert" className="break-words text-sm font-medium text-[#b00020]">
-          {message}
-        </p>
-      </main>
-    );
-  }
+export default function Home() {
+  const [state, action, pending] = useActionState<SetupState, FormData>(claimSetupToken, {});
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
-      <PageHeader />
-      {groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No accounts found.</p>
+    <main>
+      <h1>Connect SimpleFin to an AI assistant</h1>
+      {state.url ? (
+        <>
+          <p>
+            Add this as a custom connector (MCP server URL) in Claude, ChatGPT, or any MCP client. It is
+            shown <strong>once</strong> — anyone with it can read your balances, so treat it like a
+            password.
+          </p>
+          <input
+            readOnly
+            value={state.url}
+            onFocus={(e) => e.currentTarget.select()}
+           
+          />
+          <button
+           
+            onClick={() => navigator.clipboard.writeText(state.url!)}
+          >
+            Copy URL
+          </button>
+        </>
       ) : (
-        <div className="flex w-full flex-col gap-4 sm:gap-6">
-          {groups.map(({ orgName, accounts }) => (
-            <Card key={orgName} className="w-full">
-              <CardHeader>
-                <Kicker>Institution</Kicker>
-                <CardTitle className="font-serif text-lg break-words sm:text-xl">
-                  {orgName}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="flex flex-col gap-2">
-                  {accounts.map((account) => (
-                    <li
-                      key={account.id}
-                      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-ink/10 py-2 last:border-b-0"
-                    >
-                      <span className="min-w-0 flex-1 break-words font-medium">
-                        {account.name}
-                      </span>
-                      <span className="min-w-0 flex-shrink-0 break-words text-right font-medium">
-                        {formatBalance(account)}
-                      </span>
-                      <span className="w-full min-w-0 break-words text-xs text-muted-foreground">
-                        as of {formatAsOf(account)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <form action={action}>
+          <p>
+            Create a setup token in{" "}
+            <a href="https://beta-bridge.simplefin.org/" target="_blank" rel="noreferrer">
+              SimpleFin Bridge
+            </a>{" "}
+            and paste it below. Tokens work once.
+          </p>
+          <textarea name="token" rows={4} required />
+          <button disabled={pending}>
+            {pending ? "Claiming…" : "Get connector URL"}
+          </button>
+          {state.error && <p className="error">{state.error}</p>}
+        </form>
       )}
     </main>
   );

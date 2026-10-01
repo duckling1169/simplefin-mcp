@@ -3,30 +3,14 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createMcpHandler } from "mcp-handler";
 
 import { accessUrlForKey } from "../../lib/connections";
-
-import { extractBearerKey, isAuthorized } from "../../lib/mcp-auth";
 import { getBalances } from "../../lib/simplefin";
 
-/**
- * MCP Streamable HTTP endpoint exposing a single tool, get_balances, backed by the
- * same shared SimpleFin module the dashboard page uses (lib/simplefin.ts).
- *
- * Auth: either a per-connection key minted by /setup (see lib/connections.ts) or the
- * operator's static MCP_BEARER_KEY (see lib/mcp-auth.ts), checked before the handler runs.
- * A missing/wrong key never reaches get_balances, so no SimpleFin call is attempted.
- *
- * The rejection response below is a 401 with a JSON body and a `WWW-Authenticate:
- * Bearer` header (not a bare, bodyless 401) -- matching js/ember-finance's
- * src/app/api/mcp/route.ts, which found that some MCP clients treat a bare 401 as an
- * invitation to attempt OAuth auto-registration. Responding with a normal Bearer
- * challenge instead avoids that.
- */
+// MCP Streamable HTTP endpoint. Auth is the connection key minted by the setup page, sent as
+// `Authorization: Bearer <key>` or `?key=<key>`. An unknown key never reaches a tool.
 
 export const runtime = "nodejs";
 
-// The resolved SimpleFin access URL for the current request (per-connection, or the
-// operator's SIMPLEFIN_ACCESS_URL when the static MCP_BEARER_KEY is used).
-const requestAccessUrl = new AsyncLocalStorage<string | undefined>();
+const requestAccessUrl = new AsyncLocalStorage<string>();
 
 const handler = createMcpHandler(
   (server) => {
@@ -34,13 +18,12 @@ const handler = createMcpHandler(
       "get_balances",
       {
         title: "Get balances",
-        description:
-          "Get SimpleFin account balances grouped by institution -- the same data the dashboard page shows.",
+        description: "Get SimpleFin account balances grouped by institution.",
         inputSchema: {},
       },
       async () => {
         try {
-          const groups = await getBalances(requestAccessUrl.getStore());
+          const groups = await getBalances(requestAccessUrl.getStore()!);
           return { content: [{ type: "text", text: JSON.stringify(groups, null, 2) }] };
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to fetch balances.";
@@ -53,27 +36,26 @@ const handler = createMcpHandler(
   { basePath: "", maxDuration: 60, disableSse: true },
 );
 
+function extractKey(req: Request): string | null {
+  const header = req.headers.get("authorization") ?? "";
+  if (header.startsWith("Bearer ") && header.slice(7).trim()) return header.slice(7).trim();
+  return new URL(req.url).searchParams.get("key")?.trim() || null;
+}
+
+// A JSON body plus a plain Bearer challenge (no resource_metadata), so clients don't
+// mistake this for an invitation to attempt OAuth.
 function unauthorized(): Response {
-  return new Response(
-    JSON.stringify({ error: "Missing or invalid bearer key. Pass it as an Authorization: Bearer header or a ?key= query param." }),
-    {
-      status: 401,
-      headers: {
-        "Content-Type": "application/json",
-        "WWW-Authenticate": 'Bearer realm="simplefin-mcp-mcp"',
-      },
-    },
+  return Response.json(
+    { error: "Missing or invalid connection key. Get a connector URL from the setup page." },
+    { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="simplefin-mcp"' } },
   );
 }
 
-async function handleAuthed(req: Request): Promise<Response> {
-  if (isAuthorized(req)) {
-    return requestAccessUrl.run(undefined, () => handler(req));
-  }
-  const key = extractBearerKey(req);
+async function handle(req: Request): Promise<Response> {
+  const key = extractKey(req);
   const accessUrl = key ? await accessUrlForKey(key).catch(() => null) : null;
   if (!accessUrl) return unauthorized();
   return requestAccessUrl.run(accessUrl, () => handler(req));
 }
 
-export { handleAuthed as GET, handleAuthed as POST, handleAuthed as DELETE };
+export { handle as GET, handle as POST, handle as DELETE };
