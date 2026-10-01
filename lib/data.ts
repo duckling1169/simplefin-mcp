@@ -21,6 +21,10 @@ export const MAX_HISTORY_WINDOWS = 4;
 
 export type Snapshot = AccountSet & { fetchedAt: number; windowStart: number };
 
+// Refreshes in progress, per connection. Assistants often call several tools at once; without
+// this, each would start its own refresh and the burst can get rejected by SimpleFin.
+const inFlight = new Map<string, Promise<Snapshot>>();
+
 export async function getSnapshot(
   conn: ConnectionHandle,
   opts: { refresh?: boolean } = {},
@@ -31,6 +35,16 @@ export async function getSnapshot(
       return JSON.parse(cached.json) as Snapshot;
     }
   }
+  const pending = inFlight.get(conn.keyHash);
+  if (pending) return pending;
+  const refresh = fetchSnapshot(conn).finally(() =>
+    inFlight.delete(conn.keyHash),
+  );
+  inFlight.set(conn.keyHash, refresh);
+  return refresh;
+}
+
+async function fetchSnapshot(conn: ConnectionHandle): Promise<Snapshot> {
   const now = Math.floor(Date.now() / 1000);
   // With no end-date Bridge measures the window to slightly past now, so the open-ended recent
   // request starts a day later to stay within the 45-day recommendation.
