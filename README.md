@@ -26,7 +26,7 @@ SimpleFin Bridge allows ~24 requests/day and recommends at most 45 days per requ
 
 ```bash
 CI=true pnpm install --frozen-lockfile
-pnpm verify   # format, lint, typecheck, test
+pnpm verify   # format, typecheck, test
 ```
 
 Copy `.env.example` to `.env.local` for local runs. Schema lives in `supabase/migrations/`.
