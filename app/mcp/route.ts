@@ -252,9 +252,24 @@ function unauthorized(): Response {
   );
 }
 
+// A database or decryption failure is an outage, not a bad key: report it as one so it
+// isn't mistaken for a revoked connector URL. The message never includes the key.
+function unavailable(): Response {
+  return Response.json(
+    { error: "Connection storage is unavailable. Try again shortly." },
+    { status: 503, headers: { "Retry-After": "30" } },
+  );
+}
+
 async function handle(req: Request): Promise<Response> {
   const key = extractKey(req);
-  const conn = key ? await loadConnection(key).catch(() => null) : null;
+  if (!key) return unauthorized();
+  let conn: ConnectionHandle | null;
+  try {
+    conn = await loadConnection(key);
+  } catch {
+    return unavailable();
+  }
   if (!conn) return unauthorized();
   return requestConnection.run(conn, () => handler(req));
 }
