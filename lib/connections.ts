@@ -6,6 +6,7 @@ import {
   randomBytes,
 } from "node:crypto";
 
+import { db } from "@/lib/db";
 import { fetchAccountSet } from "@/lib/simplefin";
 
 // Server-only. A "connection" is one claimed SimpleFin setup token. The user gets back a random
@@ -18,20 +19,6 @@ import { fetchAccountSet } from "@/lib/simplefin";
 const CLAIM_HOST_SUFFIX = ".simplefin.org";
 
 export class SetupTokenError extends Error {}
-
-function supabaseConfig() {
-  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key)
-    throw new Error("Supabase is not configured on the server.");
-  const headers: Record<string, string> = {
-    apikey: key,
-    "Content-Type": "application/json",
-  };
-  if (key.startsWith("eyJ")) headers.Authorization = `Bearer ${key}`;
-  return { rest: `${url.replace(/\/$/, "")}/rest/v1`, headers };
-}
 
 const hashKey = (key: string) => createHash("sha256").update(key).digest("hex");
 const aesKey = (key: string) =>
@@ -109,18 +96,9 @@ export async function createConnection(setupToken: string): Promise<string> {
     .catch(() => null);
 
   const key = randomBytes(32).toString("base64url");
-  const { rest, headers } = supabaseConfig();
-  const insert = await fetch(`${rest}/connections`, {
-    method: "POST",
-    headers: { ...headers, Prefer: "return=minimal" },
-    body: JSON.stringify({
-      key_hash: hashKey(key),
-      access_url_ciphertext: seal(accessUrl, key),
-      label,
-    }),
-  });
-  if (!insert.ok)
-    throw new Error(`Failed to save connection (HTTP ${insert.status}).`);
+  const q = await db();
+  await q`insert into connections (key_hash, access_url_ciphertext, label)
+    values (${hashKey(key)}, ${seal(accessUrl, key)}, ${label})`;
   return key;
 }
 
@@ -134,22 +112,14 @@ export type ConnectionHandle = {
 export async function loadConnection(
   key: string,
 ): Promise<ConnectionHandle | null> {
-  const { rest, headers } = supabaseConfig();
+  const q = await db();
   const keyHash = hashKey(key);
-  const res = await fetch(
-    `${rest}/connections?key_hash=eq.${keyHash}&select=access_url_ciphertext`,
-    { headers },
-  );
-  if (!res.ok)
-    throw new Error(`Failed to look up connection (HTTP ${res.status}).`);
-  const rows = (await res.json()) as { access_url_ciphertext: string }[];
+  const rows = (await q`update connections set last_used_at = now()
+    where key_hash = ${keyHash} returning access_url_ciphertext`) as {
+    access_url_ciphertext: string;
+  }[];
   const row = rows[0];
   if (!row) return null;
-  void fetch(`${rest}/connections?key_hash=eq.${keyHash}`, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({ last_used_at: new Date().toISOString() }),
-  }).catch(() => {});
   return {
     key,
     keyHash,
@@ -161,22 +131,18 @@ export async function loadConnection(
 export async function readSnapshot(
   conn: ConnectionHandle,
 ): Promise<{ json: string; fetchedAt: number } | null> {
-  const { rest, headers } = supabaseConfig();
-  const res = await fetch(
-    `${rest}/snapshots?key_hash=eq.${conn.keyHash}&select=ciphertext,fetched_at`,
-    { headers },
-  );
-  if (!res.ok) return null;
-  const rows = (await res.json()) as {
-    ciphertext: string;
-    fetched_at: string;
-  }[];
-  const row = rows[0];
-  if (!row) return null;
   try {
+    const q = await db();
+    const rows = (await q`select ciphertext, fetched_at from snapshots
+      where key_hash = ${conn.keyHash}`) as {
+      ciphertext: string;
+      fetched_at: Date;
+    }[];
+    const row = rows[0];
+    if (!row) return null;
     return {
       json: unseal(row.ciphertext, conn.key),
-      fetchedAt: Date.parse(row.fetched_at),
+      fetchedAt: new Date(row.fetched_at).getTime(),
     };
   } catch {
     return null;
@@ -187,19 +153,15 @@ export async function writeSnapshot(
   conn: ConnectionHandle,
   json: string,
 ): Promise<void> {
-  const { rest, headers } = supabaseConfig();
-  await fetch(`${rest}/snapshots?on_conflict=key_hash`, {
-    method: "POST",
-    headers: {
-      ...headers,
-      Prefer: "resolution=merge-duplicates,return=minimal",
-    },
-    body: JSON.stringify({
-      key_hash: conn.keyHash,
-      ciphertext: seal(json, conn.key),
-      fetched_at: new Date().toISOString(),
-    }),
-  }).catch(() => {});
+  try {
+    const q = await db();
+    await q`insert into snapshots (key_hash, ciphertext, fetched_at)
+      values (${conn.keyHash}, ${seal(json, conn.key)}, now())
+      on conflict (key_hash) do update
+      set ciphertext = excluded.ciphertext, fetched_at = excluded.fetched_at`;
+  } catch {
+    // The cache is best-effort; a failed write only costs a refetch later.
+  }
 }
 
 export type ConnectionSummary = {
@@ -210,34 +172,24 @@ export type ConnectionSummary = {
 };
 
 export async function listConnections(): Promise<ConnectionSummary[]> {
-  const { rest, headers } = supabaseConfig();
-  const res = await fetch(
-    `${rest}/connections?select=key_hash,label,created_at,last_used_at&order=created_at`,
-    { headers, cache: "no-store" },
-  );
-  if (!res.ok)
-    throw new Error(`Failed to list connections (HTTP ${res.status}).`);
-  const rows = (await res.json()) as {
+  const q = await db();
+  const rows = (await q`select key_hash, label, created_at, last_used_at
+    from connections order by created_at`) as {
     key_hash: string;
     label: string | null;
-    created_at: string;
-    last_used_at: string | null;
+    created_at: Date;
+    last_used_at: Date | null;
   }[];
   return rows.map((r) => ({
     keyHash: r.key_hash,
     label: r.label,
-    createdAt: r.created_at,
-    lastUsedAt: r.last_used_at,
+    createdAt: new Date(r.created_at).toISOString(),
+    lastUsedAt: r.last_used_at ? new Date(r.last_used_at).toISOString() : null,
   }));
 }
 
 /** Deletes a connection; its cached snapshot goes with it (on delete cascade). */
 export async function revokeConnection(keyHash: string): Promise<void> {
-  const { rest, headers } = supabaseConfig();
-  const res = await fetch(
-    `${rest}/connections?key_hash=eq.${encodeURIComponent(keyHash)}`,
-    { method: "DELETE", headers },
-  );
-  if (!res.ok)
-    throw new Error(`Failed to revoke connection (HTTP ${res.status}).`);
+  const q = await db();
+  await q`delete from connections where key_hash = ${keyHash}`;
 }
