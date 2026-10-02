@@ -3,14 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import { parseAccountSet } from "@/lib/simplefin";
 
 vi.mock("@/lib/connections", () => ({
-  loadConnection: async (key: string) =>
-    key === "good-key"
+  loadConnection: async (key: string) => {
+    if (key === "db-down") throw new Error("connection refused");
+    return key === "good-key"
       ? {
           key,
           keyHash: "hash",
           accessUrl: "https://u:p@bridge.example/simplefin",
         }
-      : null,
+      : null;
+  },
 }));
 
 vi.mock("@/lib/data", async (importOriginal) => {
@@ -69,6 +71,12 @@ describe("/mcp", () => {
     expect(res.headers.get("www-authenticate")).toBe(
       'Bearer realm="simplefin-mcp"',
     );
+  });
+
+  it("reports a storage failure as 503, not an invalid key", async () => {
+    const res = await rpc("tools/list", {}, "db-down");
+    expect(res.status).toBe(503);
+    expect(await res.text()).not.toContain("db-down");
   });
 
   it("lists the tools", async () => {
