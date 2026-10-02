@@ -13,6 +13,23 @@ const DEMO_ACCESS_URL = "https://demo:demo@beta-bridge.simplefin.org/simplefin";
 const V2 = loadFixture("account-set-v2.json") as Record<string, unknown>;
 
 describe("parseAccountSet", () => {
+  it("keeps holdings that arrive without an id", () => {
+    const raw = structuredClone(V2) as { accounts: { holdings: unknown[] }[] };
+    raw.accounts[0]!.holdings.push({
+      symbol: "VTI",
+      shares: "3",
+      market_value: "900",
+    });
+    const holdings = parseAccountSet(raw).accounts[0]!.holdings;
+    expect(holdings).toHaveLength(2);
+    expect(holdings[1]).toMatchObject({
+      symbol: "VTI",
+      shares: 3,
+      marketValue: 900,
+    });
+    expect(holdings[1]!.id).toContain("VTI");
+  });
+
   it("parses version 2 accounts, transactions, holdings, connections and errors", () => {
     const set = parseAccountSet(V2);
     const a = set.accounts[0]!;
