@@ -15,4 +15,4 @@ See `README.md` for purpose and architecture.
   (`https://demo:demo@beta-bridge.simplefin.org/simplefin`), never a real account.
 - Plain CSS only.
 - Keep `pnpm-lock.yaml` in sync with `package.json`; the repo deploys standalone on Vercel.
-- Schema changes go in a new file under `supabase/migrations/`.
+- The schema lives in `lib/db.ts` (`create table if not exists`, applied on first use).

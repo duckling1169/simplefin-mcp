@@ -32,15 +32,15 @@ export default function Home() {
       <section className="steps-section on-horizon" aria-labelledby="setup">
         <div className="steps-inner">
           <h2 id="setup">Set it up</h2>
-          <p>About ten minutes. You need a Vercel and a Supabase account.</p>
+          <p>About five minutes. You need a Vercel account.</p>
           <ol className="steps">
             <li>
               <div>
                 <h3>Deploy your own copy</h3>
                 <p>
-                  Choose an <code>OWNER_PASSWORD</code>, add the Supabase
-                  integration, and run the SQL in{" "}
-                  <code>supabase/migrations</code>.
+                  Choose an <code>OWNER_PASSWORD</code> and add a Neon Postgres
+                  database from the Vercel Marketplace. The tables are created
+                  on first use.
                 </p>
               </div>
               <a className="button dark" href={DEPLOY}>
