@@ -61,6 +61,15 @@ describe("tools", () => {
     });
   });
 
+  it("treats a zero cost basis on a valued position as unknown", () => {
+    const zero = structuredClone(set);
+    zero.accounts[0]!.holdings[0]!.costBasis = 0;
+    expect(listHoldings(zero)[0]?.holdings[0]).toMatchObject({
+      costBasis: null,
+      gain: null,
+    });
+  });
+
   it("maps merchant category codes", () => {
     expect(mccCategory("5411")).toBe("Groceries");
     expect(mccCategory("5542")).toBe("Gas");

@@ -101,12 +101,14 @@ function parseTransaction(raw: Raw): Transaction | null {
   };
 }
 
-function parseHolding(raw: Raw): Holding | null {
-  const id = str(raw.id);
-  if (!id) return null;
+// Some institutions (seen with UBS) send positions without an id; keep them under a
+// synthetic one rather than dropping them.
+function parseHolding(raw: Raw, accountId: string, index: number): Holding {
+  const symbol = str(raw.symbol);
   return {
-    id,
-    symbol: str(raw.symbol),
+    id:
+      str(raw.id) ?? `${accountId}:${symbol ?? str(raw.description) ?? index}`,
+    symbol,
     description: str(raw.description),
     shares: num(raw.shares),
     marketValue: num(raw.market_value),
@@ -155,7 +157,7 @@ export function parseAccountSet(data: Raw): AccountSet {
         transactions: arr(a.transactions).flatMap(
           (t) => parseTransaction(t) ?? [],
         ),
-        holdings: arr(a.holdings).flatMap((h) => parseHolding(h) ?? []),
+        holdings: arr(a.holdings).map((h, i) => parseHolding(h, id, i)),
       },
     ];
   });

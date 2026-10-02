@@ -138,18 +138,24 @@ export function listHoldings(set: AccountSet) {
       institution: a.institution,
       account: a.name,
       accountId: a.id,
-      holdings: a.holdings.map((h) => ({
-        symbol: h.symbol,
-        description: h.description,
-        shares: h.shares,
-        marketValue: h.marketValue,
-        costBasis: h.costBasis,
-        gain:
-          h.marketValue !== null && h.costBasis !== null
-            ? round(h.marketValue - h.costBasis)
-            : null,
-        currency: h.currency,
-      })),
+      holdings: a.holdings.map((h) => {
+        // Institutions often send 0 when they don't report cost basis; treat it as unknown
+        // rather than reporting the whole position as gain.
+        const costBasis =
+          h.costBasis === 0 && (h.marketValue ?? 0) > 0 ? null : h.costBasis;
+        return {
+          symbol: h.symbol,
+          description: h.description,
+          shares: h.shares,
+          marketValue: h.marketValue,
+          costBasis,
+          gain:
+            h.marketValue !== null && costBasis !== null
+              ? round(h.marketValue - costBasis)
+              : null,
+          currency: h.currency,
+        };
+      }),
     }));
 }
 
