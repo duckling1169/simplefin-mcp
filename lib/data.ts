@@ -19,7 +19,12 @@ import {
 export const SNAPSHOT_TTL_MS = 4 * 60 * 60 * 1000;
 export const MAX_HISTORY_WINDOWS = 4;
 
-export type Snapshot = AccountSet & { fetchedAt: number; windowStart: number };
+export type Snapshot = AccountSet & {
+  fetchedAt: number;
+  windowStart: number;
+  /** Set when a refresh failed and an older cached snapshot was served instead. */
+  staleReason?: string;
+};
 
 // Refreshes in progress, per connection. Assistants often call several tools at once; without
 // this, each would start its own refresh and the burst can get rejected by SimpleFin.
@@ -29,19 +34,27 @@ export async function getSnapshot(
   conn: ConnectionHandle,
   opts: { refresh?: boolean } = {},
 ): Promise<Snapshot> {
-  if (!opts.refresh) {
-    const cached = await readSnapshot(conn);
-    if (cached && Date.now() - cached.fetchedAt < SNAPSHOT_TTL_MS) {
-      return JSON.parse(cached.json) as Snapshot;
-    }
+  const cached = await readSnapshot(conn);
+  if (
+    !opts.refresh &&
+    cached &&
+    Date.now() - cached.fetchedAt < SNAPSHOT_TTL_MS
+  ) {
+    return JSON.parse(cached.json) as Snapshot;
   }
-  const pending = inFlight.get(conn.keyHash);
-  if (pending) return pending;
-  const refresh = fetchSnapshot(conn).finally(() =>
-    inFlight.delete(conn.keyHash),
-  );
-  inFlight.set(conn.keyHash, refresh);
-  return refresh;
+  let refresh = inFlight.get(conn.keyHash);
+  if (!refresh) {
+    refresh = fetchSnapshot(conn).finally(() => inFlight.delete(conn.keyHash));
+    inFlight.set(conn.keyHash, refresh);
+  }
+  try {
+    return await refresh;
+  } catch (error) {
+    // A slow or failing Bridge shouldn't take the tools down when older data exists.
+    if (!cached) throw error;
+    const reason = error instanceof Error ? error.message : "Refresh failed.";
+    return { ...(JSON.parse(cached.json) as Snapshot), staleReason: reason };
+  }
 }
 
 async function fetchSnapshot(conn: ConnectionHandle): Promise<Snapshot> {
@@ -50,14 +63,16 @@ async function fetchSnapshot(conn: ConnectionHandle): Promise<Snapshot> {
   // request starts a day later to stay within the 45-day recommendation.
   const mid = now - (MAX_WINDOW_DAYS - 1) * DAY;
   const windowStart = mid - MAX_WINDOW_DAYS * DAY;
-  const recent = await fetchAccountSet(conn.accessUrl, {
-    startDate: mid,
-    pending: true,
+  const started = Date.now();
+  // In parallel: two sequential live refreshes could exceed the function's time limit.
+  const [recent, older] = await Promise.all([
+    fetchAccountSet(conn.accessUrl, { startDate: mid, pending: true }),
+    fetchAccountSet(conn.accessUrl, { startDate: windowStart, endDate: mid }),
+  ]).catch((error) => {
+    console.error(`simplefin refresh failed after ${Date.now() - started}ms`);
+    throw error;
   });
-  const older = await fetchAccountSet(conn.accessUrl, {
-    startDate: windowStart,
-    endDate: mid,
-  });
+  console.info(`simplefin refresh took ${Date.now() - started}ms`);
   const olderById = new Map(older.accounts.map((a) => [a.id, a.transactions]));
   const recentIds = (txns: { id: string }[]) => new Set(txns.map((t) => t.id));
   const accounts = recent.accounts.map((a) => {
