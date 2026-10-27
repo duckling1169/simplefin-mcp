@@ -82,6 +82,11 @@ const handler = createMcpHandler(
             netTotal: Math.round(total * 100) / 100,
             institutions: listAccounts(snap),
             errors: snap.errors.map((e) => e.message),
+            ...(snap.staleReason
+              ? {
+                  staleNote: `Showing cached data; refresh failed: ${snap.staleReason}`,
+                }
+              : {}),
           };
         }),
     );

@@ -13,6 +13,9 @@ export const DAY = 86400;
 /** Days of transactions per request -- Bridge's recommended maximum. */
 export const MAX_WINDOW_DAYS = 45;
 
+/** Bridge can take a while when it refreshes banks live; stay well inside the 60s function limit. */
+export const FETCH_TIMEOUT_MS = 25_000;
+
 export type Connection = { id: string; name: string; orgUrl: string | null };
 export type Transaction = {
   id: string;
@@ -218,8 +221,13 @@ export async function fetchAccountSet(
     response = await fetch(url, {
       cache: "no-store",
       headers: { Authorization: auth },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError")
+      throw new UpstreamError(
+        `SimpleFin didn't respond within ${FETCH_TIMEOUT_MS / 1000}s. Try again later.`,
+      );
     throw new UpstreamError("Could not reach SimpleFin. Try again later.");
   }
   if (response.status === 403) {
